@@ -1,0 +1,4368 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CX Board — Creditas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<style>
+  /* ============================================
+     RESET & BASE
+  ============================================ */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --green:   #8DC63F;
+    --black:   #231F20;
+    --white:   #FFFFFF;
+    --orange:  #F47920;
+    --pink:    #E9457A;
+    --teal:    #4DB8C8;
+    --bg:      #F5F3F1;
+    --surface: #FFFFFF;
+    --border:  #E2DDD9;
+    --text:    #231F20;
+    --muted:   #7A7471;
+    --font:    'Helvetica Neue', Helvetica, Arial, sans-serif;
+    --radius:  8px;
+    --shadow:  0 2px 8px rgba(35,31,32,.08);
+    --shadow-lg: 0 8px 32px rgba(35,31,32,.16);
+  }
+
+  body {
+    font-family: var(--font);
+    background: var(--bg);
+    color: var(--text);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ============================================
+     TOPBAR
+  ============================================ */
+  #topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--black);
+    padding: 0 24px;
+    height: 52px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--white);
+    font-weight: 700;
+    font-size: 15px;
+    letter-spacing: -.3px;
+  }
+
+  .logo-dot {
+    width: 10px; height: 10px;
+    background: var(--green);
+    border-radius: 50%;
+  }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+  }
+
+  .tab-btn {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,.55);
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .2s;
+    letter-spacing: -.1px;
+  }
+
+  .tab-btn:hover { color: var(--white); background: rgba(255,255,255,.08); }
+  .tab-btn.active { color: var(--white); background: rgba(141,198,63,.18); border: 1px solid rgba(141,198,63,.35); }
+
+  .topbar-right { display: flex; align-items: center; gap: 8px; }
+
+  .menu-btn {
+    background: none;
+    border: 1px solid rgba(255,255,255,.2);
+    color: var(--white);
+    padding: 5px 10px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+    transition: all .2s;
+    font-family: var(--font);
+  }
+  .menu-btn:hover { background: rgba(255,255,255,.1); }
+
+  .gemini-key-btn {
+    background: none;
+    border: 1px solid rgba(141,198,63,.4);
+    color: var(--green);
+    padding: 5px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 12px;
+    font-family: var(--font);
+    transition: all .2s;
+  }
+  .gemini-key-btn:hover { background: rgba(141,198,63,.1); }
+
+  /* ============================================
+     TAB PANELS
+  ============================================ */
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* ============================================
+     ABA 1 — KANBAN
+  ============================================ */
+  #panel-kanban { padding: 20px 24px; }
+
+  .filter-bar {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+  }
+
+  .filter-bar input, .filter-bar select {
+    font-family: var(--font);
+    font-size: 13px;
+    padding: 7px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--white);
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s;
+  }
+  .filter-bar input { width: 240px; }
+  .filter-bar input:focus, .filter-bar select:focus { border-color: var(--green); }
+  .filter-bar select { cursor: pointer; }
+
+  /* ============================================
+     KANBAN GRID (rows=raias, cols=TLs)
+  ============================================ */
+  .kb-grid-row {
+    display: grid;
+    grid-template-columns: 130px repeat(6, 1fr);
+    background: var(--white);
+    /* strong horizontal separator between rows */
+    border-left: 1px solid #c8c3be;
+    border-right: 1px solid #c8c3be;
+    border-bottom: 1px solid #c8c3be;
+  }
+
+  /* top border only on first row */
+  .kb-grid-row:first-child { border-top: 1px solid #c8c3be; border-radius: 10px 10px 0 0; }
+  .kb-grid-row:last-child  { border-radius: 0 0 10px 10px; }
+
+  /* strong vertical separators between cells */
+  .kb-grid-row > * + * { border-left: 2px solid #c8c3be; }
+
+  /* extra thick border between raia rows */
+  .kb-grid-row + .kb-grid-row { border-top: 2px solid #b0aaa5; }
+
+  /* header row */
+  .kb-header-row {
+    background: var(--black);
+    border-color: var(--black) !important;
+    border-top: none !important;
+    position: sticky;
+    top: 52px;
+    z-index: 10;
+  }
+  .kb-header-row > * + * { border-left: 1px solid rgba(255,255,255,.12) !important; }
+  .kb-header-row + .kb-grid-row { border-top: 3px solid var(--black) !important; }
+
+  .kb-header-cell {
+    padding: 10px 12px;
+    text-align: center;
+    cursor: pointer;
+    transition: background .15s;
+    background: transparent;
+  }
+  .kb-header-cell:hover { background: rgba(255,255,255,.06); }
+
+  .kb-owner-name {
+    color: var(--white);
+    font-weight: 700;
+    font-size: 12px;
+    margin-bottom: 2px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .kb-owner-count { color: rgba(255,255,255,.4); font-size: 10px; }
+
+  /* row label (left cell) */
+  .kb-row-label {
+    padding: 12px 14px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 5px;
+    background: #f0eeec;
+    border-right: 3px solid #b0aaa5 !important;
+  }
+
+  .kb-row-label-dark {
+    background: var(--black);
+    justify-content: center;
+    align-items: center;
+    border-right: none !important;
+  }
+
+  .kb-row-label-foco    { background: #e8f5d0; }
+  .kb-row-label-concluido { background: #e8e8e8; }
+
+  .kb-raia-name {
+    font-weight: 800;
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: #6a6460;
+    line-height: 1.3;
+  }
+  .kb-row-foco .kb-raia-name     { color: #3a7000; }
+  .kb-row-concluido .kb-raia-name{ color: #444; }
+
+  .kb-raia-count {
+    display: inline-block;
+    background: rgba(0,0,0,.08);
+    color: #7a7470;
+    border-radius: 20px;
+    padding: 1px 8px;
+    font-size: 10px;
+    font-weight: 700;
+    width: fit-content;
+  }
+  .kb-row-foco .kb-raia-count { background: #c5e68d; color: #3a7000; }
+
+  .drop-indicator {
+    height: 3px;
+    background: var(--green);
+    border-radius: 2px;
+    margin: 2px 0;
+    pointer-events: none;
+  }
+
+  /* data cells */
+  .kb-cell {
+    padding: 8px;
+    min-height: 90px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    transition: background .15s;
+    background: var(--white);
+  }
+  .kb-cell.drag-over { background: #f0fae0 !important; }
+
+  .kb-row-concluido .kb-cell { background: #f7f7f7; }
+  .kb-row-concluido .kb-cell.drag-over { background: #e8f5e8 !important; }
+  .kb-row-foco .kb-cell { background: #fdfff8; }
+
+  /* cards inside cells */
+  .card-list { display: flex; flex-direction: column; gap: 6px; flex: 1; }
+
+  /* CARD */
+  .card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 10px 10px 8px;
+    cursor: pointer;
+    transition: box-shadow .2s, transform .15s;
+    position: relative;
+    user-select: none;
+  }
+  .card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+  .card.dragging { opacity: .4; }
+
+  .card-title {
+    font-weight: 600;
+    font-size: 12.5px;
+    line-height: 1.4;
+    margin-bottom: 8px;
+    color: var(--text);
+  }
+
+  .card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 6px;
+  }
+
+  .badge {
+    border-radius: 4px;
+    padding: 2px 7px;
+    font-size: 10.5px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+
+  .badge-green  { background: #e8f7d0; color: #4a8a10; border: 1px solid #c5e68d; }
+  .badge-orange { background: #fef0e3; color: #b85a10; border: 1px solid #f4c499; }
+  .badge-teal   { background: #e0f5f8; color: #2a8a96; border: 1px solid #9dd9e4; }
+  .badge-pink   { background: #fde8f1; color: #a0205a; border: 1px solid #f0a8c8; }
+  .badge-gray   { background: var(--bg); color: var(--muted); border: 1px solid var(--border); }
+
+  .card-progress {
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .progress-bar {
+    flex: 1;
+    height: 3px;
+    background: var(--border);
+    border-radius: 2px;
+    overflow: hidden;
+  }
+
+  .progress-fill {
+    height: 100%;
+    background: var(--green);
+    border-radius: 2px;
+    transition: width .3s;
+  }
+
+  /* Add card btn */
+  .add-card-btn {
+    width: 100%;
+    margin-top: 8px;
+    padding: 6px;
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    color: var(--muted);
+    font-size: 11px;
+    font-family: var(--font);
+    cursor: pointer;
+    transition: all .2s;
+    text-align: center;
+  }
+  .add-card-btn:hover { background: #f0fae0; border-color: var(--green); color: #4a8a10; }
+
+  /* ============================================
+     ABA 2 — GESTÃO
+  ============================================ */
+  #panel-gestao { padding: 20px 24px; }
+
+  .section-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .section-title::before {
+    content: '';
+    width: 3px;
+    height: 16px;
+    background: var(--green);
+    border-radius: 2px;
+    display: block;
+  }
+
+  .table-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow-x: auto;
+    margin-bottom: 24px;
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+
+  thead th {
+    background: var(--bg);
+    padding: 10px 12px;
+    text-align: left;
+    font-weight: 700;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--muted);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    position: sticky;
+    top: 0;
+  }
+
+  tbody tr {
+    cursor: pointer;
+    transition: background .15s;
+    border-bottom: 1px solid var(--border);
+  }
+  tbody tr:last-child { border-bottom: none; }
+  tbody tr:hover { background: #fafaf8; }
+
+  tbody td {
+    padding: 9px 12px;
+    color: var(--text);
+    white-space: nowrap;
+  }
+
+  tbody td.editable:focus {
+    outline: none;
+    background: #fffde8;
+    box-shadow: inset 0 0 0 2px var(--green);
+  }
+
+  .btn-remove {
+    background: none;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all .2s;
+    line-height: 1;
+  }
+  .btn-remove:hover { background: #fde8ef; color: var(--pink); }
+
+  .btn-add-row {
+    margin-top: 12px;
+    padding: 7px 16px;
+    background: none;
+    border: 1px dashed var(--border);
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-add-row:hover { background: #f0fae0; border-color: var(--green); color: #4a8a10; }
+
+  /* Quadrant badge */
+  .q-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #e8f7d0;
+    color: #4a8a10;
+  }
+
+  /* ============================================
+     LEADER DETAIL VIEW
+  ============================================ */
+  #leader-detail {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--bg);
+    z-index: 200;
+    overflow-y: auto;
+  }
+
+  #leader-detail.open { display: block; }
+
+  .detail-topbar {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--black);
+    padding: 0 24px;
+    height: 52px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .btn-back {
+    background: none;
+    border: 1px solid rgba(255,255,255,.2);
+    color: var(--white);
+    padding: 5px 14px;
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 12px;
+    cursor: pointer;
+    transition: all .2s;
+  }
+  .btn-back:hover { background: rgba(255,255,255,.1); }
+
+  .detail-name {
+    color: var(--white);
+    font-weight: 700;
+    font-size: 15px;
+  }
+
+  .detail-cargo {
+    color: rgba(255,255,255,.5);
+    font-size: 12px;
+  }
+
+  .detail-content {
+    max-width: 980px;
+    margin: 0 auto;
+    padding: 28px 24px;
+  }
+
+  .info-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: 12px;
+    margin-bottom: 28px;
+  }
+
+  .info-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px;
+  }
+
+  .info-label {
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    color: var(--muted);
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  .info-value {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text);
+  }
+
+  .section-card {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+
+  .section-card-title {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .ai-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background: linear-gradient(135deg, #e8f7d0, #d0e8f8);
+    border: 1px solid #b0d8e8;
+    border-radius: 20px;
+    padding: 3px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #2a7a96;
+  }
+
+  .upload-area {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 24px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .2s;
+    color: var(--muted);
+    font-size: 13px;
+    margin-bottom: 12px;
+  }
+  .upload-area:hover { border-color: var(--green); background: #f8fdf0; }
+  .upload-area input { display: none; }
+
+  textarea.paste-area {
+    width: 100%;
+    min-height: 100px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-family: var(--font);
+    font-size: 13px;
+    resize: vertical;
+    outline: none;
+    color: var(--text);
+    transition: border-color .2s;
+  }
+  textarea.paste-area:focus { border-color: var(--green); }
+
+  .ai-result {
+    background: #f8fdf0;
+    border: 1px solid #c5e68d;
+    border-radius: 8px;
+    padding: 16px;
+    font-size: 13px;
+    line-height: 1.7;
+    white-space: pre-wrap;
+    margin-top: 14px;
+    display: none;
+  }
+  .ai-result.visible { display: block; }
+
+  .one-on-one-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .oon-item {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 14px;
+    background: var(--bg);
+  }
+
+  .oon-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 8px;
+  }
+
+  .oon-date {
+    font-weight: 700;
+    font-size: 12px;
+    color: var(--text);
+  }
+
+  .oon-link {
+    color: var(--teal);
+    font-size: 12px;
+    text-decoration: none;
+  }
+  .oon-link:hover { text-decoration: underline; }
+
+  .oon-summary {
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.6;
+    white-space: pre-wrap;
+  }
+
+  /* ============================================
+     ABA 3 — KPIs
+  ============================================ */
+  #panel-kpis { padding: 20px 24px; }
+
+  .kpi-actions {
+    display: flex;
+    gap: 10px;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+  }
+
+  .btn-sm {
+    padding: 7px 14px;
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all .2s;
+    border: 1px solid var(--border);
+    background: var(--white);
+    color: var(--text);
+  }
+  .btn-sm:hover { background: var(--bg); }
+
+  .btn-primary {
+    background: var(--green);
+    border-color: var(--green);
+    color: var(--white);
+  }
+  .btn-primary:hover { background: #7ab835; }
+
+  .kpi-table-wrap {
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow-x: auto;
+    margin-bottom: 28px;
+  }
+
+  .kpi-table-wrap table thead th {
+    font-size: 10.5px;
+  }
+
+  .kpi-alavanca-row td {
+    background: var(--bg);
+    font-weight: 700;
+    font-size: 12px;
+    padding: 8px 12px;
+    color: var(--text);
+    border-bottom: 1px solid var(--border);
+  }
+
+  .kpi-cell {
+    min-width: 60px;
+    text-align: right;
+  }
+
+  .kpi-cell[contenteditable="true"]:focus {
+    outline: none;
+    background: #fffde8;
+    box-shadow: inset 0 0 0 2px var(--green);
+  }
+
+  .diff-positive { color: #4a8a10; font-weight: 600; }
+  .diff-negative { color: #c0392b; font-weight: 600; }
+  .diff-neutral   { color: var(--muted); }
+
+  /* ============================================
+     MODALS & OVERLAYS
+  ============================================ */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(35,31,32,.55);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .modal-overlay.open { display: flex; }
+
+  .modal {
+    background: var(--white);
+    border-radius: 12px;
+    width: 100%;
+    max-width: 580px;
+    max-height: 90vh;
+    overflow-y: auto;
+    box-shadow: var(--shadow-lg);
+  }
+
+  .modal-wide { max-width: 760px; }
+
+  .modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 20px 14px;
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 0;
+    background: var(--white);
+    z-index: 1;
+  }
+
+  .modal-title {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .btn-close {
+    background: none;
+    border: none;
+    font-size: 20px;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 2px 6px;
+    border-radius: 4px;
+    transition: all .2s;
+    line-height: 1;
+  }
+  .btn-close:hover { background: var(--bg); color: var(--text); }
+
+  .modal-body {
+    padding: 20px;
+  }
+
+  .form-row {
+    margin-bottom: 14px;
+  }
+
+  .form-label {
+    display: block;
+    font-size: 11.5px;
+    font-weight: 700;
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    margin-bottom: 5px;
+  }
+
+  .form-input {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s;
+    background: var(--white);
+  }
+  .form-input:focus { border-color: var(--green); }
+
+  .form-select {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    background: var(--white);
+    cursor: pointer;
+  }
+  .form-select:focus { border-color: var(--green); }
+
+  .form-textarea {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    resize: vertical;
+    min-height: 80px;
+    transition: border-color .2s;
+  }
+  .form-textarea:focus { border-color: var(--green); }
+
+  .form-row-2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    margin-bottom: 14px;
+  }
+
+  .subtask-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-bottom: 10px;
+  }
+
+  .subtask-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    background: var(--bg);
+    border-radius: 6px;
+  }
+
+  .subtask-item input[type="checkbox"] {
+    accent-color: var(--green);
+    width: 14px;
+    height: 14px;
+    cursor: pointer;
+  }
+
+  .subtask-text {
+    flex: 1;
+    font-size: 13px;
+    background: none;
+    border: none;
+    font-family: var(--font);
+    color: var(--text);
+    outline: none;
+    cursor: text;
+  }
+
+  .subtask-text.done {
+    text-decoration: line-through;
+    color: var(--muted);
+  }
+
+  .btn-del-subtask {
+    background: none;
+    border: none;
+    color: #ccc;
+    cursor: pointer;
+    font-size: 14px;
+    padding: 0 4px;
+    transition: color .2s;
+  }
+  .btn-del-subtask:hover { color: var(--pink); }
+
+  .add-subtask-row {
+    display: flex;
+    gap: 8px;
+  }
+
+  .modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 10px;
+    padding: 14px 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  .btn-cancel {
+    padding: 8px 18px;
+    border: 1px solid var(--border);
+    background: var(--white);
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 13px;
+    cursor: pointer;
+    color: var(--text);
+    transition: all .2s;
+  }
+  .btn-cancel:hover { background: var(--bg); }
+
+  .btn-save {
+    padding: 8px 20px;
+    border: none;
+    background: var(--green);
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    color: var(--white);
+    transition: all .2s;
+  }
+  .btn-save:hover { background: #7ab835; }
+
+  .btn-danger {
+    padding: 8px 18px;
+    border: 1px solid #f0a8c8;
+    background: #fde8f1;
+    border-radius: 6px;
+    font-family: var(--font);
+    font-size: 13px;
+    cursor: pointer;
+    color: #a0205a;
+    transition: all .2s;
+    margin-right: auto;
+  }
+  .btn-danger:hover { background: #fbd0e3; }
+
+  /* Dropdown menu */
+  .dropdown {
+    position: relative;
+  }
+
+  .dropdown-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    min-width: 200px;
+    z-index: 1000;
+    overflow: hidden;
+  }
+
+  .dropdown-menu.open { display: block; }
+
+  .dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    font-size: 13px;
+    color: var(--text);
+    cursor: pointer;
+    transition: background .15s;
+  }
+  .dropdown-item:hover { background: var(--bg); }
+  .dropdown-item .icon { width: 16px; text-align: center; font-size: 14px; }
+  .dropdown-sep { height: 1px; background: var(--border); margin: 4px 0; }
+
+  /* Loading */
+  .loading-spinner {
+    display: inline-block;
+    width: 14px; height: 14px;
+    border: 2px solid rgba(141,198,63,.3);
+    border-top-color: var(--green);
+    border-radius: 50%;
+    animation: spin .7s linear infinite;
+    vertical-align: middle;
+    margin-right: 6px;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Toast */
+  #toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--black);
+    color: var(--white);
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    z-index: 9999;
+    transform: translateY(80px);
+    opacity: 0;
+    transition: all .3s;
+    pointer-events: none;
+    border-left: 3px solid var(--green);
+  }
+  #toast.show { transform: translateY(0); opacity: 1; }
+
+  /* Empty state */
+  .empty-state {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--muted);
+    font-size: 12px;
+  }
+
+  /* API Key modal */
+  .key-info {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 14px;
+  }
+
+  /* ============================================
+     EDITABLE SELECT DROPDOWN
+  ============================================ */
+  .editable-select-wrap { position: relative; }
+
+  .editable-select-display {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--white);
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--text);
+    transition: border-color .2s;
+    user-select: none;
+  }
+  .editable-select-display:hover { border-color: #bbb; }
+  .editable-select-display.open { border-color: var(--green); }
+  .editable-select-display .arrow { font-size: 10px; color: var(--muted); transition: transform .2s; }
+  .editable-select-display.open .arrow { transform: rotate(180deg); }
+  .editable-select-display .placeholder { color: var(--muted); }
+
+  .editable-select-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0; right: 0;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    box-shadow: var(--shadow-lg);
+    z-index: 1000;
+    overflow: hidden;
+    max-height: 260px;
+    overflow-y: auto;
+  }
+  .editable-select-menu.open { display: block; }
+
+  .es-search {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .es-search input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-family: var(--font);
+    font-size: 12px;
+    color: var(--text);
+    background: none;
+  }
+
+  .es-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 8px 12px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background .1s;
+  }
+  .es-option:hover { background: var(--bg); }
+  .es-option.selected { background: #f0fae0; color: #3a7a00; font-weight: 600; }
+  .es-option .es-del {
+    visibility: hidden;
+    color: #ccc;
+    font-size: 12px;
+    padding: 0 4px;
+    border-radius: 3px;
+    cursor: pointer;
+  }
+  .es-option:hover .es-del { visibility: visible; }
+  .es-option .es-del:hover { color: var(--pink); }
+
+  .es-add-row {
+    padding: 7px 10px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .es-add-row input {
+    flex: 1;
+    border: none;
+    outline: none;
+    font-family: var(--font);
+    font-size: 12px;
+    color: var(--text);
+    background: none;
+  }
+  .es-add-btn {
+    background: var(--green);
+    border: none;
+    color: var(--white);
+    border-radius: 5px;
+    padding: 3px 10px;
+    font-size: 12px;
+    font-family: var(--font);
+    cursor: pointer;
+    font-weight: 600;
+    transition: background .2s;
+  }
+  .es-add-btn:hover { background: #7ab835; }
+
+  /* ============================================
+     COLOR PICKER
+  ============================================ */
+  .color-swatch {
+    width: 28px; height: 28px;
+    border-radius: 6px;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: transform .15s, border-color .15s;
+    position: relative;
+  }
+  .color-swatch:hover { transform: scale(1.15); }
+  .color-swatch.active { border-color: var(--black); }
+  .color-swatch .swatch-check {
+    display: none;
+    position: absolute;
+    inset: 0;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+  }
+  .color-swatch.active .swatch-check { display: flex; }
+
+  /* ============================================
+     LEADER DETAIL — NEW DESIGN
+  ============================================ */
+  #leader-detail { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 200; overflow-y: auto; }
+  #leader-detail.open { display: block; }
+
+  .detail-topbar {
+    background: var(--black);
+    padding: 0 24px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+
+  .detail-profile-summary {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex: 1;
+  }
+
+  .detail-avatar {
+    width: 36px; height: 36px;
+    border-radius: 50%;
+    background: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 800; color: var(--white);
+    flex-shrink: 0;
+  }
+
+  .detail-profile-name { color: var(--white); font-weight: 700; font-size: 15px; }
+  .detail-profile-cargo { color: rgba(255,255,255,.5); font-size: 11px; }
+
+  /* Profile strip below topbar */
+  .detail-profile-strip {
+    background: var(--white);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 24px;
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+  }
+
+  .profile-stat {
+    padding: 6px 20px;
+    border-right: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .profile-stat:first-child { padding-left: 0; }
+  .profile-stat:last-child  { border-right: none; }
+
+  .profile-stat-label {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: .6px;
+    font-weight: 700;
+    color: var(--muted);
+    margin-bottom: 3px;
+  }
+
+  .profile-stat-value {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text);
+  }
+
+  .profile-stat-value.highlight-green { color: #3a7a00; }
+  .profile-stat-value.highlight-orange { color: #b85a10; }
+  .profile-stat-value.highlight-pink   { color: #a0205a; }
+
+  /* 9box badge */
+  .ninebox-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+  }
+  .ninebox-fui-alem  { background: #e8f7d0; color: #3a7a00; border: 1px solid #8DC63F; }
+  .ninebox-posso-mais{ background: #fff0e0; color: #7a3500; border: 1px solid #F47920; }
+  .ninebox-atencao   { background: #fde8f1; color: #7a1040; border: 1px solid #E9457A; }
+
+  .detail-content {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 24px;
+  }
+
+  /* QR output sections */
+  .qr-section {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+    margin-bottom: 10px;
+  }
+
+  .qr-section-title {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    color: var(--muted);
+    margin-bottom: 10px;
+    padding-bottom: 7px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .qr-field {
+    margin-bottom: 10px;
+  }
+  .qr-field-label { font-size: 11px; font-weight: 700; color: var(--text); margin-bottom: 3px; }
+  .qr-field-value {
+    font-size: 12.5px;
+    color: var(--text);
+    line-height: 1.6;
+    background: var(--white);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 8px 10px;
+    white-space: pre-wrap;
+  }
+
+  .qr-scale {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    background: #e8f7d0;
+    color: #3a7a00;
+    border: 1px solid #8DC63F;
+  }
+
+  /* Evaluation history cards */
+  .eval-hist-item {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    margin-bottom: 8px;
+    cursor: pointer;
+    transition: box-shadow .2s;
+  }
+  .eval-hist-item:hover { box-shadow: var(--shadow); }
+  .eval-hist-header { display: flex; align-items: center; gap: 10px; justify-content: space-between; }
+  .eval-hist-period { font-weight: 700; font-size: 13px; }
+
+  /* Drive import loading */
+  .drive-loading {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 12px;
+    background: var(--bg);
+    border-radius: 6px;
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 8px;
+  }
+
+  /* Perf files list */
+  .perf-file-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 12px;
+  }
+  .perf-file-chip .chip-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .perf-file-chip .chip-del { cursor: pointer; color: var(--muted); transition: color .2s; }
+  .perf-file-chip .chip-del:hover { color: var(--pink); }
+</style>
+<style>
+  #login-screen {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: var(--black);
+    z-index: 9999;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+  }
+  #login-screen.visible { display: flex; }
+
+  .login-box {
+    background: var(--white);
+    border-radius: 16px;
+    padding: 40px 44px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 24px 80px rgba(0,0,0,.4);
+    text-align: center;
+  }
+
+  .login-logo {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin-bottom: 28px;
+  }
+  .login-logo-dot { width: 14px; height: 14px; background: var(--green); border-radius: 50%; }
+  .login-logo-text { font-size: 22px; font-weight: 800; color: var(--black); letter-spacing: -.5px; }
+
+  .login-subtitle {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 28px;
+    line-height: 1.5;
+  }
+
+  .login-input-wrap {
+    position: relative;
+    margin-bottom: 14px;
+  }
+  .login-input-wrap .input-icon {
+    position: absolute;
+    left: 12px; top: 50%;
+    transform: translateY(-50%);
+    font-size: 14px;
+    color: var(--muted);
+    pointer-events: none;
+  }
+  .login-input {
+    width: 100%;
+    padding: 11px 12px 11px 36px;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    font-family: var(--font);
+    font-size: 13px;
+    color: var(--text);
+    outline: none;
+    transition: border-color .2s;
+  }
+  .login-input:focus { border-color: var(--green); }
+
+  .login-btn {
+    width: 100%;
+    padding: 12px;
+    background: var(--black);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    font-family: var(--font);
+    font-size: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all .2s;
+    margin-top: 4px;
+    letter-spacing: -.2px;
+  }
+  .login-btn:hover { background: #3a3636; }
+  .login-btn:active { transform: scale(.98); }
+
+  .login-error {
+    margin-top: 12px;
+    font-size: 12px;
+    color: var(--pink);
+    display: none;
+  }
+  .login-error.show { display: block; }
+
+  .login-footer {
+    margin-top: 20px;
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* ============================================
+     USER BADGE IN TOPBAR
+  ============================================ */
+  .user-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    background: rgba(255,255,255,.08);
+    border: 1px solid rgba(255,255,255,.15);
+    border-radius: 20px;
+    padding: 4px 12px 4px 6px;
+    cursor: pointer;
+    transition: background .2s;
+  }
+  .user-badge:hover { background: rgba(255,255,255,.14); }
+
+  .user-avatar {
+    width: 24px; height: 24px;
+    border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800;
+    color: var(--white);
+    flex-shrink: 0;
+  }
+
+  .user-name { color: var(--white); font-size: 12px; font-weight: 600; }
+  .user-role {
+    font-size: 10px;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-weight: 700;
+  }
+  .role-admin { background: rgba(141,198,63,.25); color: var(--green); }
+  .role-tl    { background: rgba(77,184,200,.25); color: var(--teal); }
+  .role-viewer{ background: rgba(255,255,255,.12); color: rgba(255,255,255,.6); }
+
+  /* ============================================
+     CONFIDENTIAL CARD INDICATOR
+  ============================================ */
+  .card-confidential-badge {
+    position: absolute;
+    top: 6px; right: 7px;
+    font-size: 11px;
+    cursor: pointer;
+    opacity: .7;
+    transition: opacity .2s;
+  }
+  .card-confidential-badge:hover { opacity: 1; }
+
+  .card.is-confidential {
+    border-style: dashed;
+  }
+
+  /* ============================================
+     ACCESS MANAGER MODAL
+  ============================================ */
+  .user-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 12px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    margin-bottom: 7px;
+    background: var(--bg);
+    font-size: 13px;
+  }
+  .user-row-email { flex: 1; color: var(--text); font-weight: 500; }
+  .user-row-role select {
+    font-family: var(--font);
+    font-size: 12px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 3px 7px;
+    outline: none;
+    background: var(--white);
+    cursor: pointer;
+  }
+
+  .readonly-overlay {
+    pointer-events: none;
+    opacity: .7;
+  }
+
+  /* Feedback items */
+  .feedback-item {
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 11px 13px;
+    margin-bottom: 8px;
+    background: var(--bg);
+    position: relative;
+  }
+  .feedback-header { display:flex; align-items:center; gap:8px; margin-bottom:6px; }
+  .feedback-date   { font-size:11px; font-weight:700; color:var(--text); }
+  .feedback-type-badge { font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px; }
+  .fb-positivo       { background:#e8f7d0; color:#3a7a00;  border:1px solid #8DC63F; }
+  .fb-desenvolvimento{ background:#e0f5f8; color:#1a6070;  border:1px solid #4DB8C8; }
+  .fb-observacao     { background:#f0efee; color:#3a3836;  border:1px solid #aaa; }
+  .fb-reconhecimento { background:#fffbe0; color:#5a4000;  border:1px solid #d4a800; }
+  .feedback-context  { font-size:11px; color:var(--muted); margin-bottom:4px; }
+  .feedback-text     { font-size:12.5px; color:var(--text); line-height:1.5; }
+  .feedback-principle{ font-size:10px; font-style:italic; color:var(--muted); margin-top:4px; }
+  .feedback-del {
+    position:absolute; top:8px; right:8px;
+    background:none; border:none; color:#ccc; cursor:pointer; font-size:13px; padding:0 3px; transition:color .2s;
+  }
+  .feedback-del:hover { color:var(--pink); }
+</style>
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div id="topbar">
+  <div class="logo">
+    <div class="logo-dot"></div>
+    CX Board
+  </div>
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="kanban">📋 Planejamento</button>
+    <button class="tab-btn" data-tab="gestao">👥 Gestão</button>
+    <button class="tab-btn" data-tab="kpis">📊 KPIs</button>
+  </div>
+  <div class="topbar-right">
+    <button class="gemini-key-btn" id="btnSetKey">🔑 API Key</button>
+    <div id="userBadge" class="user-badge" onclick="handleUserBadgeClick()" style="display:none"></div>
+    <div class="dropdown" id="menuDropdown">
+      <button class="menu-btn" id="menuBtn">☰</button>
+      <div class="dropdown-menu" id="dropdownMenu">
+        <div class="dropdown-item" id="menuImportCSV" onclick="importCSV()"><span class="icon">📥</span> Importar CSV</div>
+        <div class="dropdown-item" id="menuLoadExample" onclick="loadExample()"><span class="icon">⚡</span> Carregar exemplo</div>
+        <div class="dropdown-item" onclick="downloadCSVTemplate()"><span class="icon">📄</span> Baixar modelo CSV</div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-item" id="menuExportJSON" onclick="exportJSON()"><span class="icon">💾</span> Exportar backup JSON</div>
+        <div class="dropdown-item" id="menuImportJSON" onclick="importJSON()"><span class="icon">📂</span> Importar backup JSON</div>
+        <div class="dropdown-sep" id="menuAdminSep"></div>
+        <div class="dropdown-item" id="menuAccessMgr" onclick="openAccessModal()"><span class="icon">🔐</span> Gerenciar acessos</div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-item" onclick="clearAll()" style="color:var(--pink)" id="menuClearAll"><span class="icon">🗑️</span> Limpar tudo</div>
+        <div class="dropdown-sep"></div>
+        <div class="dropdown-item" onclick="doLogout()" style="color:var(--muted)"><span class="icon">🚪</span> Sair</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HIDDEN FILE INPUTS -->
+<input type="file" id="csvFileInput" accept=".csv" style="display:none">
+<input type="file" id="jsonFileInput" accept=".json" style="display:none">
+
+<!-- ==================== ABA 1 — KANBAN ==================== -->
+<div id="panel-kanban" class="tab-panel active">
+  <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px;">
+    <input type="text" id="filterSearch" placeholder="🔍 Buscar cards..." oninput="renderKanban()"
+      style="font-family:var(--font);font-size:13px;padding:7px 12px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--text);outline:none;width:240px;">
+    <select id="filterOwner" onchange="renderKanban()"
+      style="font-family:var(--font);font-size:13px;padding:7px 12px;border:1px solid var(--border);border-radius:6px;background:var(--white);color:var(--text);outline:none;cursor:pointer;">
+      <option value="">Todos os owners</option>
+    </select>
+    <!-- hidden selects kept for JS compatibility -->
+    <select id="filterAlavanca" onchange="renderKanban()" style="display:none"><option value=""></option></select>
+    <select id="filterRaia"     onchange="renderKanban()" style="display:none"><option value=""></option></select>
+    <!-- Legend bar inline -->
+    <div id="kanbanLegendBar" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;flex:1;"></div>
+  </div>
+  <div class="kanban-wrapper" id="kanbanWrapper"></div>
+</div>
+
+<!-- ==================== ABA 2 — GESTÃO ==================== -->
+<div id="panel-gestao" class="tab-panel">
+  <div class="section-title">Time de Líderes</div>
+
+  <div class="table-wrapper">
+    <table id="leadersTable">
+      <thead>
+        <tr>
+          <th>Nome</th><th>Cargo</th><th>Step</th><th>Admissão</th>
+          <th>Tempo de casa</th><th>Último mérito</th>
+          <th>Eixo X</th><th>Eixo Y</th><th>Conceito</th><th>Quadrante</th>
+          <th>NPS Lid.</th><th>eNPS</th><th>Fav.</th><th></th>
+        </tr>
+      </thead>
+      <tbody id="leadersBody"></tbody>
+    </table>
+  </div>
+  <button class="btn-add-row" onclick="addLeader()">+ Adicionar líder</button>
+</div>
+
+<!-- ==================== ABA 3 — KPIs ==================== -->
+<div id="panel-kpis" class="tab-panel">
+  <div class="kpi-actions">
+    <button class="btn-sm btn-primary" onclick="exportKPICSV()">⬆ Exportar CSV</button>
+    <button class="btn-sm" onclick="importKPICSV()">⬇ Importar CSV</button>
+    <button class="btn-sm" onclick="addKPIRow()">+ Novo KPI</button>
+  </div>
+  <div id="kpiContent"></div>
+</div>
+<input type="file" id="kpiCsvInput" accept=".csv" style="display:none">
+
+<!-- ==================== LEADER DETAIL VIEW ==================== -->
+<div id="leader-detail">
+  <!-- TOP BAR -->
+  <div class="detail-topbar">
+    <button class="btn-back" onclick="closeLeaderDetail()">← Voltar</button>
+    <div class="detail-profile-summary" id="detailProfileSummary"></div>
+  </div>
+
+  <!-- PROFILE STRIP -->
+  <div class="detail-profile-strip" id="detailProfileStrip"></div>
+
+  <!-- CONTENT -->
+  <div class="detail-content">
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start;">
+
+      <!-- 1:1s COLUMN -->
+      <div>
+        <!-- Feedbacks -->
+        <div class="section-card">
+          <div class="section-card-title">
+            <span>💬 Feedbacks</span>
+            <button class="btn-save" style="padding:6px 14px;font-size:12px;" onclick="openFeedbackModal()">+ Novo feedback</button>
+          </div>
+          <div id="feedbackList">
+            <div class="empty-state">Nenhum feedback registrado ainda.</div>
+          </div>
+        </div>
+
+        <!-- Resumo do mês -->
+        <div class="section-card" id="monthSummaryCard">
+          <div class="section-card-title">
+            <span>📊 Resumo do mês</span>
+            <span class="ai-badge">✨ IA</span>
+          </div>
+          <div id="monthSummaryContent" class="ai-result" style="display:block;margin-top:0;background:#f8f9fa;border-color:var(--border);color:var(--muted);font-style:italic;font-size:12px;padding:12px">
+            Adicione 1:1s para gerar o resumo do mês automaticamente.
+          </div>
+          <button class="btn-save" style="margin-top:10px;padding:6px 14px;font-size:12px;" id="btnMonthSummary" onclick="generateMonthSummary()">✨ Gerar resumo do mês</button>
+        </div>
+
+        <!-- 1:1 list -->
+        <div class="section-card">
+          <div class="section-card-title">
+            <span>🗣 Histórico de 1:1s</span>
+            <button class="btn-save" style="padding:6px 14px;font-size:12px;" onclick="openNewOon()">+ Novo 1:1</button>
+          </div>
+          <!-- Drive integration -->
+          <div style="display:flex;gap:8px;margin-bottom:12px;align-items:center;">
+            <input class="form-input" id="driveTranscriptUrl" placeholder="🔗 Link do Google Doc → abre e você cola o texto..." style="flex:1;font-size:12px">
+            <button class="btn-save" style="padding:7px 12px;font-size:12px;background:var(--teal);" onclick="importFromDrive()">📂 Abrir</button>
+          </div>
+          <div class="one-on-one-list" id="oonList">
+            <div class="empty-state">Nenhum 1:1 registrado ainda.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- PERFORMANCE COLUMN -->
+      <div>
+        <div class="section-card">
+          <div class="section-card-title">
+            <span>🎯 Avaliação de Performance</span>
+            <span class="ai-badge">✨ IA → QR</span>
+          </div>
+
+          <!-- Context materials -->
+          <div style="margin-bottom:14px;">
+            <label class="form-label" style="margin-bottom:6px;display:block">Materiais de contexto</label>
+            <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">Suba avaliações anteriores, feedbacks, docs de resultado — quanto mais contexto, melhor a análise.</div>
+            <div id="perfFilesList" style="display:flex;flex-direction:column;gap:6px;margin-bottom:8px;"></div>
+            <div class="upload-area" style="padding:12px;font-size:12px;" onclick="document.getElementById('perfFilesInput').click()">
+              <input type="file" id="perfFilesInput" accept=".txt,.pdf,.docx" multiple>
+              📎 Clique para subir documentos (.pdf, .txt, .docx)
+            </div>
+          </div>
+
+          <!-- Extra context text -->
+          <div style="margin-bottom:14px;">
+            <label class="form-label" style="margin-bottom:6px;display:block">Contexto adicional (opcional)</label>
+            <textarea class="paste-area" id="perfContextText" placeholder="Adicione contexto livre: projetos, situações, observações do período..." style="min-height:70px;font-size:12px;"></textarea>
+          </div>
+
+          <!-- Period -->
+          <div style="margin-bottom:14px;">
+            <label class="form-label" style="margin-bottom:6px;display:block">Período avaliado</label>
+            <input class="form-input" id="perfPeriod" placeholder="Ex: Janeiro/2026" style="font-size:12px;">
+          </div>
+
+          <button class="btn-save" id="btnGenerateQR" onclick="generateQRAnswers()" style="width:100%;justify-content:center;padding:10px;">
+            ✨ Gerar respostas para Qulture Rocks
+          </button>
+
+          <!-- QR Output -->
+          <div id="qrOutput" style="display:none;margin-top:16px;">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+              <span style="font-weight:700;font-size:13px;">Respostas geradas</span>
+              <button onclick="copyQROutput()" style="background:none;border:1px solid var(--border);border-radius:5px;padding:4px 10px;font-size:11px;cursor:pointer;font-family:var(--font);">📋 Copiar tudo</button>
+            </div>
+            <div id="qrOutputContent" style="font-size:12.5px;line-height:1.8;"></div>
+
+            <!-- 9box result -->
+            <div id="nineboxResult" style="margin-top:14px;padding:14px;border-radius:8px;text-align:center;display:none;">
+              <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;">Quadrante estimado</div>
+              <div id="nineboxLabel" style="font-size:18px;font-weight:800;"></div>
+              <div id="nineboxSub" style="font-size:11px;margin-top:4px;opacity:.7;"></div>
+            </div>
+
+            <!-- save button -->
+            <button onclick="saveEvaluation()" class="btn-save" style="margin-top:12px;width:100%;justify-content:center;background:var(--teal);">
+              💾 Salvar avaliação no histórico
+            </button>
+          </div>
+
+          <!-- Evaluation history -->
+          <div id="avaliacoesHistory" style="margin-top:16px;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Card Modal -->
+<div class="modal-overlay" id="cardModal">
+  <div class="modal modal-wide">
+    <div class="modal-header">
+      <div class="modal-title" id="cardModalTitle">Novo card</div>
+      <button class="btn-close" onclick="closeCardModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row">
+        <label class="form-label">Título *</label>
+        <input class="form-input" id="cardTitle" placeholder="Título do card">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Descrição</label>
+        <textarea class="form-textarea" id="cardDesc" placeholder="Descreva o card..."></textarea>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Raia</label>
+          <select class="form-select" id="cardRaia">
+            <option>Fazer Agora</option>
+            <option>Acompanhar</option>
+            <option>Delegar</option>
+            <option>Manter em mente</option>
+          </select>
+        </div>
+        <div>
+          <label class="form-label">Status</label>
+          <select class="form-select" id="cardStatus">
+            <option>Não iniciado</option>
+            <option>Em andamento</option>
+            <option>Aguardando outra área</option>
+            <option>Validar resultados</option>
+            <option>Concluído</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Alavanca</label>
+          <div class="editable-select-wrap" id="alavancaWrap"></div>
+        </div>
+        <div>
+          <label class="form-label">Impacto</label>
+          <div class="editable-select-wrap" id="impactoWrap"></div>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Owner</label>
+          <div class="editable-select-wrap" id="ownerWrap"></div>
+        </div>
+        <div>
+          <label class="form-label">Prazo</label>
+          <input class="form-input" type="date" id="cardPrazo">
+        </div>
+      </div>
+      <!-- Color picker -->
+      <div class="form-row">
+        <label class="form-label">Cor do card</label>
+        <div id="colorPicker" style="display:flex; gap:8px; flex-wrap:wrap;"></div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Subtarefas</label>
+        <div class="subtask-list" id="subtaskList"></div>
+        <div class="add-subtask-row">
+          <input class="form-input" id="newSubtaskInput" placeholder="Nova subtarefa..." style="flex:1">
+          <button class="btn-save" style="padding:8px 14px;" onclick="addSubtask()">+</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-danger" id="btnDeleteCard" onclick="deleteCard()" style="display:none">Excluir</button>
+      <button class="btn-cancel" onclick="closeCardModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveCard()">Salvar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Feedback Modal -->
+<div class="modal-overlay" id="feedbackModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">💬 Novo Feedback</div>
+      <button class="btn-close" onclick="closeFeedbackModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Data</label>
+          <input class="form-input" type="date" id="feedbackDate">
+        </div>
+        <div>
+          <label class="form-label">Tipo</label>
+          <select class="form-select" id="feedbackType">
+            <option value="positivo">👍 Positivo</option>
+            <option value="desenvolvimento">📈 Desenvolvimento</option>
+            <option value="observacao">👁 Observação</option>
+            <option value="reconhecimento">⭐ Reconhecimento</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Contexto / Situação</label>
+        <input class="form-input" id="feedbackContext" placeholder="Ex: reunião de time, entrega do projeto X...">
+      </div>
+      <div class="form-row">
+        <label class="form-label">Feedback *</label>
+        <textarea class="form-textarea" id="feedbackText" style="min-height:100px;" placeholder="Descreva o comportamento observado, com exemplos concretos..."></textarea>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Princípio Creditas relacionado (opcional)</label>
+        <select class="form-select" id="feedbackPrinciple">
+          <option value="">Nenhum</option>
+          <option>Seja inconformista</option>
+          <option>Vai lá e faz</option>
+          <option>Paixão pela experiência</option>
+          <option>Alta performance na veia</option>
+          <option>(Re)aprender rápido</option>
+          <option>Valorizamos as diferenças</option>
+          <option>Direto ao ponto</option>
+          <option>Mais com menos</option>
+          <option>Crie sua história</option>
+        </select>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeFeedbackModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveFeedback()">Salvar feedback</button>
+    </div>
+  </div>
+</div>
+
+<!-- New 1:1 Modal -->
+<div class="modal-overlay" id="oonModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div class="modal-title">Novo 1:1</div>
+      <button class="btn-close" onclick="closeOonModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-row-2">
+        <div>
+          <label class="form-label">Data *</label>
+          <input class="form-input" type="date" id="oonDate">
+        </div>
+        <div>
+          <label class="form-label">Link Drive (opcional)</label>
+          <input class="form-input" id="oonLink" placeholder="https://docs.google.com/...">
+        </div>
+      </div>
+      <div class="form-row">
+        <label class="form-label">Transcrição / Notas</label>
+        <textarea class="form-textarea" id="oonText" style="min-height:140px;" placeholder="Cole aqui a transcrição ou as notas do 1:1..."></textarea>
+      </div>
+      <div class="upload-area" onclick="document.getElementById('oonFileInput').click()" style="padding:12px; font-size:12px;">
+        <input type="file" id="oonFileInput" accept=".txt,.pdf">
+        📎 Ou suba um arquivo (.txt / .pdf)
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeOonModal()">Cancelar</button>
+      <button class="btn-save" id="btnAnalyzeOon" onclick="analyzeOon()">✨ Analisar com IA</button>
+      <button class="btn-save" style="background:var(--teal);" onclick="saveOonManual()">Salvar sem IA</button>
+    </div>
+  </div>
+</div>
+
+<!-- API Key Modal -->
+<div class="modal-overlay" id="keyModal">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <div class="modal-title">🔑 Chave da API Gemini</div>
+      <button class="btn-close" onclick="closeKeyModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="key-info">
+        A chave é salva no localStorage do seu browser e usada apenas para chamadas à API do Google.<br>
+        <strong>⚠ A IA só funciona quando o arquivo é aberto diretamente no browser</strong>, não no preview do Claude.
+      </div>
+      <div id="keyStatus" style="font-size:12px;margin-bottom:12px;font-weight:600;"></div>
+      <div class="form-row">
+        <label class="form-label">Gemini API Key</label>
+        <input class="form-input" type="password" id="keyInput" placeholder="AIzaSy...">
+      </div>
+      <div id="keyTestResult" style="font-size:12px;margin-top:8px;line-height:1.5;"></div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="testApiKey()" style="margin-right:auto;">🔌 Testar conexão</button>
+      <button class="btn-cancel" onclick="closeKeyModal()">Cancelar</button>
+      <button class="btn-save" onclick="saveApiKey()">Salvar chave</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== LOGIN SCREEN ==================== -->
+<div id="login-screen" class="visible">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="login-logo-dot"></div>
+      <div class="login-logo-text">CX Board</div>
+    </div>
+    <div class="login-subtitle">Digite seu email e senha Creditas</div>
+    <div class="login-input-wrap">
+      <span class="input-icon">✉</span>
+      <input class="login-input" type="email" id="loginEmail" placeholder="seu.nome@creditas.com" autocomplete="email">
+    </div>
+    <div class="login-input-wrap">
+      <span class="input-icon">🔑</span>
+      <input class="login-input" type="password" id="loginPassword" placeholder="Senha" autocomplete="current-password">
+    </div>
+    <button class="login-btn" onclick="doLogin()">Entrar</button>
+    <div class="login-error" id="loginError">Email não autorizado ou fora do domínio @creditas.com</div>
+    <div class="login-footer">Acesso restrito a colaboradores Creditas<br><span style="color:#aaa">Senha padrão inicial: <b>creditas2025</b></span></div>
+  </div>
+</div>
+
+<!-- ==================== ACCESS MANAGER MODAL ==================== -->
+<div class="modal-overlay" id="accessModal">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <div class="modal-title">🔐 Gerenciar Acessos</div>
+      <button class="btn-close" onclick="closeAccessModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="key-info" style="margin-bottom:16px">
+        Admin tem acesso total. TL vê Planejamento + KPIs (leitura) mas não cards confidenciais nem Gestão. Visualizador tem apenas leitura de Planejamento e KPIs.
+      </div>
+      <div class="form-row" style="margin-bottom:16px;">
+        <label class="form-label">Adicionar usuário</label>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <input class="form-input" id="newUserEmail" placeholder="email@creditas.com" style="flex:2;min-width:180px">
+          <input class="form-input" id="newUserPwd" type="password" placeholder="Senha inicial" style="flex:1;min-width:120px">
+          <select class="form-select" id="newUserRole" style="width:130px">
+            <option value="tl">TL</option>
+            <option value="viewer">Visualizador</option>
+            <option value="admin">Admin</option>
+          </select>
+          <button class="btn-save" style="padding:8px 14px;" onclick="addUserAccess()">+</button>
+        </div>
+      </div>
+      <div id="userList"></div>
+      <div class="dropdown-sep" style="margin:16px 0"></div>
+      <div class="form-row">
+        <label class="form-label">Alterar minha senha</label>
+        <div style="display:flex;gap:8px;">
+          <input class="form-input" type="password" id="changePwdInput" placeholder="Nova senha" style="flex:1">
+          <button class="btn-save" style="padding:8px 14px;" onclick="changeMyPassword()">Salvar</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn-cancel" onclick="closeAccessModal()">Fechar</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div id="toast"></div>
+
+<script>
+// ============================================
+//  AUTH SYSTEM
+// ============================================
+const AUTH_KEY  = 'cx_board_auth';
+const USERS_KEY = 'cx_board_users';
+
+// Simple hash (not cryptographic — just obfuscation for localStorage)
+function simpleHash(str) {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < str.length; i++) {
+    h ^= str.charCodeAt(i);
+    h = (h * 0x01000193) >>> 0;
+  }
+  return h.toString(16);
+}
+
+function getDefaultUsers() {
+  // default password for all users is "creditas2025" — admin should change on first login
+  const defaultPwd = simpleHash('creditas2025');
+  return [
+    { email: 'bruna.ricci@creditas.com',    role: 'admin',  pwd: defaultPwd },
+    { email: 'caio.moreira@creditas.com',   role: 'tl',     pwd: defaultPwd },
+    { email: 'carolina.raro@creditas.com',  role: 'tl',     pwd: defaultPwd },
+    { email: 'eduardo.santos@creditas.com', role: 'tl',     pwd: defaultPwd },
+    { email: 'jhonatan.aita@creditas.com',  role: 'tl',     pwd: defaultPwd },
+    { email: 'vitoria.bonfim@creditas.com', role: 'tl',     pwd: defaultPwd },
+  ];
+}
+
+function loadUsers() {
+  const raw = localStorage.getItem(USERS_KEY);
+  if (raw) return JSON.parse(raw);
+  const users = getDefaultUsers();
+  localStorage.setItem(USERS_KEY, JSON.stringify(users));
+  return users;
+}
+function saveUsers(users) { localStorage.setItem(USERS_KEY, JSON.stringify(users)); }
+
+let currentUser = null;
+
+function getSession()       { const r = sessionStorage.getItem(AUTH_KEY); return r ? JSON.parse(r) : null; }
+function setSession(u)      { sessionStorage.setItem(AUTH_KEY, JSON.stringify(u)); }
+function clearSession()     { sessionStorage.removeItem(AUTH_KEY); }
+
+function doLogin() {
+  const email    = document.getElementById('loginEmail').value.trim().toLowerCase();
+  const password = document.getElementById('loginPassword').value;
+  const errEl    = document.getElementById('loginError');
+
+  if (!email.endsWith('@creditas.com')) {
+    errEl.textContent = 'Use seu email @creditas.com';
+    errEl.classList.add('show'); return;
+  }
+  if (!password) {
+    errEl.textContent = 'Digite sua senha';
+    errEl.classList.add('show'); return;
+  }
+
+  const users = loadUsers();
+  const user  = users.find(u => u.email === email);
+
+  if (!user) {
+    errEl.textContent = 'Email não cadastrado. Peça ao admin para te adicionar.';
+    errEl.classList.add('show'); return;
+  }
+
+  const hashed = simpleHash(password);
+  if (user.pwd && user.pwd !== hashed) {
+    errEl.textContent = 'Senha incorreta';
+    errEl.classList.add('show'); return;
+  }
+
+  currentUser = user;
+  setSession(user);
+  errEl.classList.remove('show');
+  document.getElementById('loginPassword').value = '';
+  document.getElementById('login-screen').classList.remove('visible');
+  applyAccessRules();
+  renderAll();
+  const first = email.split('@')[0].split('.')[0];
+  toast(`✓ Bem-vinda, ${first.charAt(0).toUpperCase()+first.slice(1)}!`);
+}
+
+function doLogout() {
+  clearSession(); currentUser = null;
+  document.getElementById('login-screen').classList.add('visible');
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('userBadge').style.display = 'none';
+  document.getElementById('dropdownMenu').classList.remove('open');
+}
+
+function applyAccessRules() {
+  if (!currentUser) return;
+  const { role, email } = currentUser;
+
+  // Badge
+  const badge = document.getElementById('userBadge');
+  const initials = email.split('@')[0].split('.').map(p=>p[0]?.toUpperCase()).join('').slice(0,2);
+  const avatarColors = { admin:'#8DC63F', tl:'#4DB8C8', viewer:'#7A7471' };
+  const roleLabels   = { admin:'Admin', tl:'TL', viewer:'Visualizador' };
+  const roleCls      = { admin:'role-admin', tl:'role-tl', viewer:'role-viewer' };
+  badge.style.display = 'flex';
+  badge.innerHTML = `
+    <div class="user-avatar" style="background:${avatarColors[role]}">${initials}</div>
+    <span class="user-name">${email.split('@')[0].replace('.',' ')}</span>
+    <span class="user-role ${roleCls[role]}">${roleLabels[role]}</span>
+  `;
+
+  // Tabs
+  const gestaoTab = document.querySelector('[data-tab="gestao"]');
+  const kpisTab   = document.querySelector('[data-tab="kpis"]');
+  gestaoTab.style.display = (role === 'admin') ? '' : 'none';
+  kpisTab.style.display   = '';
+  if (role !== 'admin' && document.getElementById('panel-gestao').classList.contains('active')) {
+    switchTab('kanban');
+  }
+
+  // Menu — admin-only items
+  ['menuImportCSV','menuLoadExample','menuExportJSON','menuImportJSON','menuAccessMgr','menuAdminSep','menuClearAll'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.style.display = (role === 'admin') ? '' : 'none';
+  });
+  document.getElementById('btnSetKey').style.display = (role === 'admin') ? '' : 'none';
+
+  // KPI read-only for non-admin
+  const ka = document.querySelector('.kpi-actions');
+  if (ka) ka.style.display = (role === 'admin') ? '' : 'none';
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  const btn = document.querySelector(`[data-tab="${tabId}"]`);
+  if (btn) btn.classList.add('active');
+  document.getElementById('panel-'+tabId)?.classList.add('active');
+}
+
+function handleUserBadgeClick() {
+  if (currentUser?.role === 'admin') openAccessModal();
+}
+
+// Access Manager
+function openAccessModal() {
+  renderUserList();
+  document.getElementById('accessModal').classList.add('open');
+  document.getElementById('dropdownMenu').classList.remove('open');
+}
+function closeAccessModal() { document.getElementById('accessModal').classList.remove('open'); }
+
+function renderUserList() {
+  const users = loadUsers();
+  document.getElementById('userList').innerHTML = users.map((u,i) => `
+    <div class="user-row">
+      <span class="user-row-email">${u.email}</span>
+      <div class="user-row-role">
+        <select onchange="updateUserRole(${i},this.value)">
+          <option value="admin"  ${u.role==='admin' ?'selected':''}>Admin</option>
+          <option value="tl"     ${u.role==='tl'    ?'selected':''}>TL</option>
+          <option value="viewer" ${u.role==='viewer'?'selected':''}>Visualizador</option>
+        </select>
+      </div>
+      ${u.email===currentUser?.email
+        ? '<span style="font-size:11px;color:var(--muted)">(você)</span>'
+        : `<button class="btn-remove" onclick="removeUserAccess(${i})">✕</button>`}
+    </div>
+  `).join('');
+}
+
+function addUserAccess() {
+  const email = document.getElementById('newUserEmail').value.trim().toLowerCase();
+  const role  = document.getElementById('newUserRole').value;
+  const pwd   = document.getElementById('newUserPwd').value;
+  if (!email.includes('@')) { toast('⚠ Email inválido'); return; }
+  if (!pwd) { toast('⚠ Defina uma senha inicial'); return; }
+  const users = loadUsers();
+  if (users.find(u=>u.email===email)) { toast('⚠ Usuário já existe'); return; }
+  users.push({ email, role, pwd: simpleHash(pwd) });
+  saveUsers(users);
+  document.getElementById('newUserEmail').value = '';
+  document.getElementById('newUserPwd').value = '';
+  renderUserList();
+  toast('✓ Usuário adicionado');
+}
+
+function changeMyPassword() {
+  const newPwd = document.getElementById('changePwdInput').value;
+  if (!newPwd || newPwd.length < 4) { toast('⚠ Senha muito curta (mín. 4 caracteres)'); return; }
+  const users = loadUsers();
+  const user = users.find(u => u.email === currentUser.email);
+  if (user) {
+    user.pwd = simpleHash(newPwd);
+    saveUsers(users);
+    // update session
+    currentUser.pwd = user.pwd;
+    setSession(currentUser);
+    document.getElementById('changePwdInput').value = '';
+    toast('✓ Senha alterada');
+  }
+}
+
+function removeUserAccess(idx) {
+  const users = loadUsers(); users.splice(idx,1); saveUsers(users); renderUserList(); toast('Usuário removido');
+}
+
+function updateUserRole(idx, role) {
+  const users = loadUsers(); users[idx].role = role; saveUsers(users); toast('✓ Perfil atualizado');
+}
+
+// Confidential visibility toggle (admin only, default hidden)
+let showConfidential = false;
+
+function canSeeConfidential() { return currentUser?.role === 'admin'; }
+
+function toggleConfidentialVisibility() {
+  showConfidential = !showConfidential;
+  const btn = document.getElementById('btnConfidential');
+  if (btn) {
+    btn.textContent = showConfidential ? '🔒 Ocultar confidenciais' : '🔒 Ver confidenciais';
+    btn.style.borderColor = showConfidential ? '#E9457A' : '';
+    btn.style.color       = showConfidential ? '#E9457A' : '';
+  }
+  renderKanban();
+}
+
+function toggleConfidential(cardId, e) {
+  e.stopPropagation();
+  const card = state.cards.find(c=>c.id===cardId);
+  if (!card) return;
+  card.confidential = !card.confidential;
+  saveState(); renderKanban();
+  toast(card.confidential ? '🔒 Card confidencial — oculto para outros' : '🔓 Card visível a todos');
+}
+
+// Login on Enter key
+document.addEventListener('DOMContentLoaded', () => {
+  ['loginEmail','loginPassword'].forEach(id => {
+    document.getElementById(id)?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') doLogin();
+    });
+  });
+});
+
+// ============================================
+//  STATE
+// ============================================
+const STORAGE_KEY = 'cx_board_v3';
+
+let state = {
+  cards: [],
+  tls: [],
+  kpis: {}
+};
+
+let GEMINI_KEY = localStorage.getItem('cx_gemini_key') || '';
+
+let RAIAS = ['Fazer Agora','Acompanhar','Delegar','Manter em mente'];
+const STATUSES = ['Não iniciado','Em andamento','Aguardando outra área','Validar resultados','Concluído'];
+
+// Líderes na linha superior do kanban (ordem alfabética)
+const KANBAN_OWNERS = ['Bruna Ricci','Caio Moreira','Carolina Raro','Eduardo Santos','Jhonatan Aita','Vitória Bonfim'];
+
+// Paleta de cores para cards
+const CARD_COLORS = [
+  { id:'default', label:'Padrão',   bg:'#FFFFFF', border:'#E2DDD9', text:'#231F20' },
+  { id:'green',   label:'Verde',    bg:'#f0fae0', border:'#8DC63F', text:'#2a5a00' },
+  { id:'orange',  label:'Laranja',  bg:'#fff4e8', border:'#F47920', text:'#7a3500' },
+  { id:'pink',    label:'Rosa',     bg:'#fde8f1', border:'#E9457A', text:'#7a1040' },
+  { id:'teal',    label:'Teal',     bg:'#e0f5f8', border:'#4DB8C8', text:'#1a6070' },
+  { id:'yellow',  label:'Amarelo',  bg:'#fffbe0', border:'#f0c040', text:'#5a4800' },
+  { id:'purple',  label:'Roxo',     bg:'#f3eeff', border:'#9b7fe8', text:'#3a1a80' },
+  { id:'gray',    label:'Cinza',    bg:'#f0efee', border:'#aaa8a5', text:'#3a3836' },
+];
+
+// Dynamic option lists (persisted in state.options)
+const DEFAULT_OPTIONS = {
+  alavancas: ['Desenvolvimento de Pessoas','Eficiência Operacional','Experiência do Cliente'],
+  impactos:  ['Alto','Médio','Baixo'],
+  owners:    [...KANBAN_OWNERS],
+};
+
+// Current editing context
+let editingCardId = null;
+let currentLeaderId = null;
+
+// ============================================
+//  PERSISTENCE
+// ============================================
+function saveState() {
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+function loadState() {
+  const raw = localStorage.getItem(STORAGE_KEY);
+  if (raw) {
+    try { state = JSON.parse(raw); } catch(e) {}
+  }
+  // ensure shape
+  if (!state.cards) state.cards = [];
+  if (!state.tls) state.tls = [];
+  if (!state.kpis) state.kpis = {};
+  if (!state.options) state.options = JSON.parse(JSON.stringify(DEFAULT_OPTIONS));
+  if (state.showArchived === undefined) state.showArchived = false;
+}
+
+// ============================================
+//  INITIAL DATA
+// ============================================
+function getInitialLeaders() {
+  return [
+    { id: uid(), nome:'BRUNA RICCI', cargo:'GERENTE - EXPERIÊNCIA DO CLIENTE', step:'—', admissao:'2021-03-01', tempo:'4 anos e 2 meses', merito:'—', eixoX:'3,50', eixoY:'3,80', conceito:'Fui Além', quadrante:'Q8', nps:'—', enps:'—', fav:'—', oons:[], avaliacoes:[] },
+    { id: uid(), nome:'CAIO MOREIRA', cargo:'LEAD I - EXPERIÊNCIA DO CLIENTE', step:'C', admissao:'2021-01-11', tempo:'5 anos e 3 meses', merito:'01/04/2026', eixoX:'2,67', eixoY:'2,91', conceito:'Fui Além', quadrante:'Q5', nps:'—', enps:'—', fav:'—', oons:[], avaliacoes:[] },
+    { id: uid(), nome:'CAROLINA RARO', cargo:'LEAD I - EXPERIÊNCIA DO CLIENTE', step:'C', admissao:'2024-08-19', tempo:'1 ano e 8 meses', merito:'não teve', eixoX:'3,33', eixoY:'3,22', conceito:'Posso Mais', quadrante:'Q3', nps:'86', enps:'86', fav:'87,5%', oons:[], avaliacoes:[] },
+    { id: uid(), nome:'EDUARDO SILVA SANTOS', cargo:'LEAD I - EXPERIÊNCIA DO CLIENTE', step:'A', admissao:'2024-07-10', tempo:'1 ano e 9 meses', merito:'não teve', eixoX:'3,00', eixoY:'3,01', conceito:'Fui Além', quadrante:'Q5', nps:'-67', enps:'-17', fav:'39,6%', oons:[], avaliacoes:[] },
+    { id: uid(), nome:'JHONATAN BUENO AITA', cargo:'LEAD I - EXPERIÊNCIA DO CLIENTE', step:'E', admissao:'2020-12-07', tempo:'5 anos e 4 meses', merito:'09/01/2025', eixoX:'3,33', eixoY:'3,23', conceito:'Fui Além', quadrante:'Q5', nps:'29', enps:'0', fav:'60,7%', oons:[], avaliacoes:[] },
+    { id: uid(), nome:'VITÓRIA BONFIM', cargo:'LEAD TRAINEE - EXPERIÊNCIA DO CLIENTE', step:'C', admissao:'2020-12-07', tempo:'5 anos e 4 meses', merito:'01/01/2025', eixoX:'3,00', eixoY:'3,11', conceito:'Fui Além', quadrante:'Q5', nps:'—', enps:'—', fav:'—', oons:[], avaliacoes:[] },
+  ];
+}
+
+function getInitialKPIs() {
+  const months = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+  const mk = (kpi, tipo, baseline, fonte) => ({
+    id: uid(), kpi, tipo, baseline, fonte, real:'', months: months.reduce((a,m)=>{a[m]=''; return a;},{}), notes:''
+  });
+  return {
+    'Desenvolvimento de Pessoas': [
+      mk('Favorabilidade','%','—','eNPS Survey'),
+      mk('eNPS','Score','—','Survey Interna'),
+      mk('NPS Liderança','Score','—','Survey Equipe'),
+    ],
+    'Eficiência Operacional': [
+      mk('Contact Rate','%','—','CRM'),
+      mk('Massa Salarial/Portfolio','R$','—','RH'),
+      mk('TMA','min','—','Plataforma'),
+      mk('%FCR','%','—','Plataforma'),
+      mk('Rechamada','%','—','Plataforma'),
+      mk('% Transferências','%','—','Plataforma'),
+      mk('Produtividade/FTE','un','—','Plataforma'),
+      mk('Nível de Serviço','%','—','Plataforma'),
+      mk('HCs','n','—','RH'),
+      mk('Encolhimento','%','—','RH'),
+      mk('Abs','%','—','RH'),
+    ],
+    'Experiência do Cliente': [
+      mk('NPS Relacional','Score','—','Survey'),
+      mk('NPS Transacional','Score','—','Survey'),
+      mk('CSAT','Score','—','Survey'),
+    ]
+  };
+}
+
+function getExampleCards() {
+  return [
+    { id:uid(), titulo:'Implementar NPS transacional no produto X', desc:'Estruturar a pesquisa de NPS ao final de jornadas-chave.', raia:'Fazer Agora', status:'Em andamento', alavanca:'Experiência do Cliente', impacto:'Alto', owner:'Jhonatan Aita', prazo:'2025-07-31', color:'green', subtarefas:[{texto:'Mapear jornadas-chave',done:true},{texto:'Definir template',done:false},{texto:'Validar com produto',done:false}] },
+    { id:uid(), titulo:'Estruturar PDI do time de líderes', desc:'Criar plano de desenvolvimento individualizado.', raia:'Fazer Agora', status:'Não iniciado', alavanca:'Desenvolvimento de Pessoas', impacto:'Alto', owner:'Carolina Raro', prazo:'2025-08-15', color:'default', subtarefas:[{texto:'Levantar gaps',done:false},{texto:'Definir ações',done:false}] },
+    { id:uid(), titulo:'Reduzir rechamada em 5pp', desc:'Atuar nos top drivers de rechamada identificados no mês.', raia:'Fazer Agora', status:'Em andamento', alavanca:'Eficiência Operacional', impacto:'Alto', owner:'Caio Moreira', prazo:'2025-06-30', color:'default', subtarefas:[] },
+    { id:uid(), titulo:'Gestão de escalações do parceiro Y', desc:'Tratar volume anormal de escalações recebidas.', raia:'Acompanhar', status:'Em andamento', alavanca:'Experiência do Cliente', impacto:'Médio', owner:'Eduardo Santos', prazo:'2025-05-20', color:'orange', subtarefas:[] },
+    { id:uid(), titulo:'Atualizar playbook de atendimento', desc:'Revisão trimestral do playbook com novos produtos.', raia:'Delegar', status:'Não iniciado', alavanca:'Eficiência Operacional', impacto:'Médio', owner:'Vitória Bonfim', prazo:'2025-06-15', color:'default', subtarefas:[{texto:'Revisar fluxos atuais',done:false},{texto:'Validar com operação',done:false},{texto:'Publicar versão nova',done:false}] },
+    { id:uid(), titulo:'Reunião semanal de resultado', desc:'Rotina semanal de acompanhamento de KPIs com o time.', raia:'Delegar', status:'Em andamento', alavanca:'Desenvolvimento de Pessoas', impacto:'Baixo', owner:'Bruna Ricci', prazo:'', color:'default', subtarefas:[] },
+    { id:uid(), titulo:'Benchmark de ferramentas de feedback', desc:'Pesquisar soluções de feedback contínuo para o time.', raia:'Manter em mente', status:'Não iniciado', alavanca:'Desenvolvimento de Pessoas', impacto:'Baixo', owner:'', prazo:'', color:'gray', subtarefas:[] },
+  ];
+}
+
+// ============================================
+//  UTILS
+// ============================================
+function uid() { return Math.random().toString(36).slice(2,10); }
+
+function toast(msg, duration=2500) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), duration);
+}
+
+function formatDate(d) {
+  if (!d) return '—';
+  try {
+    const [y,m,day] = d.split('-');
+    return `${day}/${m}/${y}`;
+  } catch(e) { return d; }
+}
+
+// ============================================
+//  TABS
+// ============================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('panel-'+btn.dataset.tab).classList.add('active');
+    if (btn.dataset.tab === 'kanban') renderKanban();
+    if (btn.dataset.tab === 'gestao') renderLeadersTable();
+    if (btn.dataset.tab === 'kpis') renderKPIs();
+  });
+});
+
+// ============================================
+//  MENU DROPDOWN
+// ============================================
+document.getElementById('menuBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  document.getElementById('dropdownMenu').classList.toggle('open');
+});
+document.addEventListener('click', () => document.getElementById('dropdownMenu').classList.remove('open'));
+
+// ============================================
+//  KANBAN RENDER
+// ============================================
+function getFilteredCards() {
+  const search = document.getElementById('filterSearch').value.toLowerCase();
+  const owner  = document.getElementById('filterOwner').value;
+  const alav   = document.getElementById('filterAlavanca').value;
+  const raia   = document.getElementById('filterRaia').value;
+
+  return state.cards.filter(c => {
+    // confidential cards: hidden from non-admins always; hidden from admin unless showConfidential
+    if (c.confidential && !canSeeConfidential()) return false;
+    if (c.confidential && canSeeConfidential() && !showConfidential) return false;
+    if (search && !c.titulo.toLowerCase().includes(search) && !(c.desc||'').toLowerCase().includes(search)) return false;
+    if (owner && c.owner !== owner) return false;
+    if (alav && c.alavanca !== alav) return false;
+    if (raia && c.raia !== raia) return false;
+    return true;
+  });
+}
+
+function updateFilters() {
+  const owners   = [...new Set(state.cards.map(c=>c.owner).filter(Boolean))].sort();
+  const alavancas = [...new Set(state.cards.map(c=>c.alavanca).filter(Boolean))].sort();
+
+  const sel = (id, vals) => {
+    const el = document.getElementById(id);
+    const cur = el.value;
+    while (el.options.length > 1) el.remove(1);
+    vals.forEach(v => {
+      const o = new Option(v,v);
+      if (v===cur) o.selected = true;
+      el.add(o);
+    });
+  };
+
+  sel('filterOwner', owners);
+  sel('filterAlavanca', alavancas);
+}
+
+function renderKanban() {
+  updateFilters();
+  const cards = getFilteredCards();
+  const wrapper = document.getElementById('kanbanWrapper');
+  wrapper.innerHTML = '';
+
+  // ── LEGEND BAR ───────────────────────────────────────────────
+  const legendBar = document.getElementById('kanbanLegendBar');
+  legendBar.innerHTML = '';
+
+  // Alavanca legend — all unique alavancas in state
+  const alavancas = [...new Set(state.cards.filter(c=>c.alavanca).map(c=>c.alavanca))].sort();
+  alavancas.forEach(alav => {
+    const ac = alavancaColor(alav);
+    const chip = document.createElement('span');
+    chip.style.cssText = `display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;background:${ac.bg};border:1px solid ${ac.border};color:${ac.text};cursor:pointer;`;
+    chip.innerHTML = `<span style="width:8px;height:8px;border-radius:50%;background:${ac.dot};flex-shrink:0"></span>${alav}`;
+    chip.title = `Filtrar por ${alav}`;
+    chip.addEventListener('click', () => {
+      const sel = document.getElementById('filterAlavanca');
+      sel.value = sel.value === alav ? '' : alav;
+      renderKanban();
+    });
+    if (document.getElementById('filterAlavanca').value === alav) {
+      chip.style.outline = `2px solid ${ac.dot}`;
+      chip.style.outlineOffset = '1px';
+    }
+    legendBar.appendChild(chip);
+  });
+
+  // Confidential toggle — admin only
+  if (canSeeConfidential()) {
+    const confidCount = state.cards.filter(c=>c.confidential).length;
+    if (confidCount > 0) {
+      const sep = document.createElement('span');
+      sep.style.cssText = 'width:1px;height:16px;background:var(--border);margin:0 4px;';
+      legendBar.appendChild(sep);
+
+      const btn = document.createElement('button');
+      btn.id = 'btnConfidential';
+      btn.style.cssText = `background:none;border:1px solid var(--border);border-radius:20px;padding:3px 10px;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);color:var(--muted);display:inline-flex;align-items:center;gap:5px;transition:all .2s;`;
+      btn.innerHTML = showConfidential
+        ? `🔒 Ocultar confidenciais (${confidCount})`
+        : `🔒 Ver confidenciais (${confidCount})`;
+      if (showConfidential) { btn.style.borderColor='#E9457A'; btn.style.color='#E9457A'; }
+      btn.onclick = toggleConfidentialVisibility;
+      legendBar.appendChild(btn);
+    }
+  }
+
+  const activeOwners = KANBAN_OWNERS; // all TLs as columns
+  const COL_W = 150; // px label column width
+
+  // ── HEADER ROW (TL names) ────────────────────────────────────
+  const headerRow = document.createElement('div');
+  headerRow.className = 'kb-grid-row kb-header-row';
+
+  const headerLabel = document.createElement('div');
+  headerLabel.className = 'kb-row-label kb-row-label-dark';
+  headerLabel.innerHTML = '<span>Time</span>';
+  headerRow.appendChild(headerLabel);
+
+  activeOwners.forEach(owner => {
+    const ownerTotal = state.cards.filter(c => c.owner === owner && c.status !== 'Concluído').length;
+    const cell = document.createElement('div');
+    cell.className = 'kb-header-cell';
+    cell.innerHTML = `
+      <div class="kb-owner-name">${owner}</div>
+      <div class="kb-owner-count">${ownerTotal} ativo${ownerTotal!==1?'s':''}</div>
+    `;
+    cell.addEventListener('click', () => {
+      const sel = document.getElementById('filterOwner');
+      sel.value = sel.value === owner ? '' : owner;
+      renderKanban();
+    });
+    // highlight if filtered
+    if (document.getElementById('filterOwner').value === owner) {
+      cell.style.background = '#f0fae0';
+    }
+    headerRow.appendChild(cell);
+  });
+  wrapper.appendChild(headerRow);
+
+  // ── RAIA ROWS ────────────────────────────────────────────────
+  RAIAS.forEach(raia => {
+    const isFazer = raia === 'Fazer Agora';
+    const raiaTotal = cards.filter(c => c.raia === raia && c.status !== 'Concluído').length;
+
+    const row = document.createElement('div');
+    row.className = 'kb-grid-row' + (isFazer ? ' kb-row-foco' : '');
+
+    // row label
+    const label = document.createElement('div');
+    label.className = 'kb-row-label' + (isFazer ? ' kb-row-label-foco' : '');
+    label.innerHTML = `
+      <span class="kb-raia-name">${raia}</span>
+      <span class="kb-raia-count">${raiaTotal}</span>
+    `;
+    row.appendChild(label);
+
+    activeOwners.forEach(owner => {
+      const cellCards = cards.filter(c => c.raia === raia && c.owner === owner && c.status !== 'Concluído');
+      const cell = document.createElement('div');
+      cell.className = 'kb-cell';
+      cell.dataset.raia = raia;
+      cell.dataset.owner = owner;
+
+      const list = document.createElement('div');
+      list.className = 'card-list';
+      cellCards.forEach(card => list.appendChild(buildCard(card)));
+
+      const addBtn = document.createElement('button');
+      addBtn.className = 'add-card-btn';
+      addBtn.textContent = '+ Novo card';
+      addBtn.onclick = () => openNewCard(raia, owner);
+      if (currentUser?.role === 'viewer') addBtn.style.display = 'none';
+
+      cell.appendChild(list);
+      cell.appendChild(addBtn);
+      setupCellDnD(cell, raia, owner);
+      row.appendChild(cell);
+    });
+
+    wrapper.appendChild(row);
+  });
+
+  // ── CONCLUÍDO ROW ────────────────────────────────────────────
+  const conclTotal = cards.filter(c => c.status === 'Concluído').length;
+  const conclRow = document.createElement('div');
+  conclRow.className = 'kb-grid-row kb-row-concluido';
+
+  const conclLabel = document.createElement('div');
+  conclLabel.className = 'kb-row-label kb-row-label-concluido';
+  conclLabel.innerHTML = `
+    <span class="kb-raia-name">✓ Concluído</span>
+    <span class="kb-raia-count">${conclTotal}</span>
+  `;
+  conclRow.appendChild(conclLabel);
+
+  activeOwners.forEach(owner => {
+    const cellCards = cards.filter(c => c.owner === owner && c.status === 'Concluído');
+    const cell = document.createElement('div');
+    cell.className = 'kb-cell kb-cell-concluido';
+    cell.dataset.raia = '_concluido';
+    cell.dataset.owner = owner;
+
+    const list = document.createElement('div');
+    list.className = 'card-list';
+    cellCards.forEach(card => list.appendChild(buildCard(card)));
+
+    const addBtn = document.createElement('button');
+    addBtn.className = 'add-card-btn';
+    addBtn.textContent = '+ Novo card';
+    addBtn.onclick = () => openNewCard('_concluido', owner);
+    if (currentUser?.role === 'viewer') addBtn.style.display = 'none';
+
+    cell.appendChild(list);
+    cell.appendChild(addBtn);
+    setupCellDnD(cell, '_concluido', owner);
+    conclRow.appendChild(cell);
+  });
+
+  wrapper.appendChild(conclRow);
+}
+
+function escHtml(s) { return s.replace(/'/g,"\\'"); }
+
+// Alavanca color — same deterministic HSL hash, used for card bg
+function alavancaColor(name) {
+  if (!name) return { bg:'#FFFFFF', border:'#E2DDD9', text:'#231F20', dot:'#aaa' };
+  // Manual overrides
+  const overrides = {
+    'Eficiência Operacional': { bg:'#fff4e8', border:'#F47920', text:'#7a3500', dot:'#F47920' },
+  };
+  if (overrides[name]) return overrides[name];
+  let h = 5381;
+  for (let i = 0; i < name.length; i++) h = ((h << 5) + h) ^ name.charCodeAt(i);
+  h = ((h >>> 0) % 360);
+  return {
+    bg:     `hsl(${h},55%,94%)`,
+    border: `hsl(${h},50%,72%)`,
+    text:   `hsl(${h},55%,25%)`,
+    dot:    `hsl(${h},55%,52%)`,
+  };
+}
+
+function buildCard(card) {
+  const el = document.createElement('div');
+  el.className = 'card';
+  el.draggable = true;
+  el.dataset.id = card.id;
+  el.style.position = 'relative';
+
+  // Color: alavanca drives bg; manual color overrides if not default
+  const manualColor = card.color && card.color !== 'default' ? CARD_COLORS.find(c=>c.id===card.color) : null;
+  const ac = alavancaColor(card.alavanca);
+  const bg     = manualColor ? manualColor.bg     : ac.bg;
+  const border = manualColor ? manualColor.border : ac.border;
+  const text   = manualColor ? manualColor.text   : ac.text;
+
+  el.style.background  = bg;
+  el.style.borderColor = border;
+  // left accent stripe with alavanca color
+  el.style.borderLeft  = `3px solid ${ac.dot}`;
+
+  const done  = (card.subtarefas||[]).filter(s=>s.done).length;
+  const total = (card.subtarefas||[]).length;
+  const pct   = total ? Math.round(done/total*100) : 0;
+
+  // confidential lock button — only admin sees it on the card
+  const lockBtn = canSeeConfidential()
+    ? `<span class="card-confidential-badge" title="${card.confidential?'Remover confidencial':'Marcar como confidencial'}" onclick="toggleConfidential('${card.id}',event)">${card.confidential?'🔒':'🔓'}</span>`
+    : '';
+
+  el.innerHTML = `
+    ${lockBtn}
+    <div class="card-title" style="color:${text};padding-right:${lockBtn?'20px':'0'}">${card.titulo}</div>
+    ${card.prazo ? `<div style="margin-top:5px;"><span class="badge badge-teal" style="font-size:10px">📅 ${formatDate(card.prazo)}</span></div>` : ''}
+    ${total ? `<div class="card-progress" style="margin-top:6px;">
+      <div class="progress-bar"><div class="progress-fill" style="width:${pct}%;background:${ac.dot}"></div></div>
+      <span style="color:${text};opacity:.7;font-size:11px">${done}/${total}</span>
+    </div>` : ''}
+  `;
+
+  if (currentUser?.role !== 'viewer') {
+    el.addEventListener('click', () => openEditCard(card.id));
+  }
+  setupCardDnD(el, card.id);
+  return el;
+}
+
+// ============================================
+//  DRAG AND DROP
+// ============================================
+let dragCardId = null;
+
+function setupCardDnD(el, id) {
+  if (currentUser?.role === 'viewer') { el.draggable = false; return; }
+  el.addEventListener('dragstart', e => {
+    dragCardId = id;
+    el.classList.add('dragging');
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  el.addEventListener('dragend', () => {
+    dragCardId = null;
+    el.classList.remove('dragging');
+    document.querySelectorAll('.kb-cell').forEach(c => c.classList.remove('drag-over'));
+    document.querySelectorAll('.drop-indicator').forEach(i => i.remove());
+  });
+}
+
+// Returns the card element after which we should insert (null = insert at top)
+function getDragAfterCard(list, y) {
+  const draggableCards = [...list.querySelectorAll('.card:not(.dragging)')];
+  return draggableCards.reduce((closest, child) => {
+    const box = child.getBoundingClientRect();
+    const offset = y - box.top - box.height / 2;
+    if (offset < 0 && offset > closest.offset) {
+      return { offset, element: child };
+    }
+    return closest;
+  }, { offset: Number.NEGATIVE_INFINITY }).element;
+}
+
+function setupCellDnD(cell, raia, owner) {
+  const getList = () => cell.querySelector('.card-list');
+
+  cell.addEventListener('dragover', e => {
+    e.preventDefault();
+    cell.classList.add('drag-over');
+
+    // show drop indicator
+    document.querySelectorAll('.drop-indicator').forEach(i => i.remove());
+    const list = getList();
+    const afterEl = getDragAfterCard(list, e.clientY);
+    const indicator = document.createElement('div');
+    indicator.className = 'drop-indicator';
+    if (afterEl) {
+      list.insertBefore(indicator, afterEl);
+    } else {
+      list.appendChild(indicator);
+    }
+  });
+
+  cell.addEventListener('dragleave', e => {
+    if (!cell.contains(e.relatedTarget)) {
+      cell.classList.remove('drag-over');
+      document.querySelectorAll('.drop-indicator').forEach(i => i.remove());
+    }
+  });
+
+  cell.addEventListener('drop', e => {
+    e.preventDefault();
+    cell.classList.remove('drag-over');
+    document.querySelectorAll('.drop-indicator').forEach(i => i.remove());
+    if (!dragCardId) return;
+
+    const card = state.cards.find(c => c.id === dragCardId);
+    if (!card) return;
+
+    // Determine insert position
+    const list = getList();
+    const afterEl = getDragAfterCard(list, e.clientY);
+    const afterId = afterEl ? afterEl.dataset.id : null;
+
+    // Update raia/owner/status
+    if (raia === '_concluido') {
+      card.status = 'Concluído';
+    } else {
+      card.raia  = raia;
+      card.owner = owner;
+      if (card.status === 'Concluído') card.status = 'Em andamento';
+    }
+
+    // Reorder in state.cards
+    // Remove card from current position
+    state.cards = state.cards.filter(c => c.id !== dragCardId);
+
+    if (afterId) {
+      const afterIdx = state.cards.findIndex(c => c.id === afterId);
+      state.cards.splice(afterIdx, 0, card);
+    } else {
+      // dropped after all cards in this cell — find last card in cell and insert after it
+      // or just push to end if no cards
+      state.cards.push(card);
+    }
+
+    saveState();
+    renderKanban();
+  });
+}
+
+// ============================================
+//  CARD MODAL
+// ============================================
+function openNewCard(raia, owner) {
+  editingCardId = null;
+  document.getElementById('cardModalTitle').textContent = 'Novo card';
+  document.getElementById('cardTitle').value = '';
+  document.getElementById('cardDesc').value = '';
+  document.getElementById('cardRaia').value = raia === '_concluido' ? 'Fazer Agora' : raia;
+  document.getElementById('cardStatus').value = raia === '_concluido' ? 'Concluído' : 'Não iniciado';
+  document.getElementById('cardPrazo').value = '';
+  document.getElementById('subtaskList').innerHTML = '';
+  document.getElementById('btnDeleteCard').style.display = 'none';
+  initEditableSelects('', '', owner || '');
+  initColorPicker('default');
+  document.getElementById('cardModal').classList.add('open');
+}
+
+function openEditCard(id) {
+  const card = state.cards.find(c => c.id === id);
+  if (!card) return;
+  editingCardId = id;
+  document.getElementById('cardModalTitle').textContent = 'Editar card';
+  document.getElementById('cardTitle').value = card.titulo;
+  document.getElementById('cardDesc').value = card.desc || '';
+  document.getElementById('cardRaia').value = card.raia;
+  document.getElementById('cardStatus').value = card.status;
+  document.getElementById('cardPrazo').value = card.prazo || '';
+  document.getElementById('btnDeleteCard').style.display = 'inline-flex';
+
+  initEditableSelects(card.alavanca||'', card.impacto||'', card.owner||'');
+  initColorPicker(card.color || 'default');
+
+  // subtasks
+  const list = document.getElementById('subtaskList');
+  list.innerHTML = '';
+  (card.subtarefas||[]).forEach((s,i) => appendSubtaskEl(s.texto, s.done, i));
+
+  document.getElementById('cardModal').classList.add('open');
+}
+
+function closeCardModal() {
+  document.getElementById('cardModal').classList.remove('open');
+  editingCardId = null;
+  const btn = document.getElementById('btnDeleteCard');
+  btn.dataset.confirming = 'false';
+  btn.textContent = 'Excluir';
+  btn.style.background = '';
+  btn.style.color = '';
+  btn.style.borderColor = '';
+}
+
+function saveCard() {
+  const titulo = document.getElementById('cardTitle').value.trim();
+  if (!titulo) { toast('⚠ Título é obrigatório'); return; }
+
+  const subtarefas = [];
+  document.querySelectorAll('#subtaskList .subtask-item').forEach(el => {
+    subtarefas.push({
+      texto: el.querySelector('.subtask-text').value,
+      done:  el.querySelector('input[type=checkbox]').checked
+    });
+  });
+
+  const owner = getEditableSelectValue('ownerWrap');
+
+  const base = {
+    titulo,
+    desc:      document.getElementById('cardDesc').value,
+    raia:      document.getElementById('cardRaia').value,
+    status:    document.getElementById('cardStatus').value,
+    alavanca:  getEditableSelectValue('alavancaWrap'),
+    impacto:   getEditableSelectValue('impactoWrap'),
+    prazo:     document.getElementById('cardPrazo').value,
+    color:     getSelectedColor(),
+    subtarefas
+  };
+
+  if (editingCardId) {
+    // editing — just update normally
+    const idx = state.cards.findIndex(c => c.id === editingCardId);
+    if (idx >= 0) state.cards[idx] = { ...state.cards[idx], ...base, owner: owner === '__todos__' ? '' : owner };
+  } else if (owner === '__todos__') {
+    // fan out: one card per TL
+    KANBAN_OWNERS.forEach(o => {
+      state.cards.push({ id: uid(), ...base, owner: o });
+    });
+    toast(`✓ ${KANBAN_OWNERS.length} cards criados para todos`);
+  } else {
+    state.cards.push({ id: uid(), ...base, owner });
+    toast('✓ Card salvo');
+  }
+
+  saveState();
+  renderKanban();
+  closeCardModal();
+}
+
+function deleteCard() {
+  if (!editingCardId) return;
+  const btn = document.getElementById('btnDeleteCard');
+  if (btn.dataset.confirming === 'true') {
+    // second click — confirm delete
+    state.cards = state.cards.filter(c => c.id !== editingCardId);
+    saveState();
+    renderKanban();
+    closeCardModal();
+    toast('Card excluído');
+  } else {
+    // first click — ask for confirmation inline
+    btn.dataset.confirming = 'true';
+    btn.textContent = 'Confirmar exclusão?';
+    btn.style.background = '#E9457A';
+    btn.style.color = '#fff';
+    btn.style.borderColor = '#E9457A';
+    setTimeout(() => {
+      if (btn.dataset.confirming === 'true') {
+        btn.dataset.confirming = 'false';
+        btn.textContent = 'Excluir';
+        btn.style.background = '';
+        btn.style.color = '';
+        btn.style.borderColor = '';
+      }
+    }, 3000);
+  }
+}
+
+function addSubtask() {
+  const input = document.getElementById('newSubtaskInput');
+  const texto = input.value.trim();
+  if (!texto) return;
+  const idx = document.querySelectorAll('#subtaskList .subtask-item').length;
+  appendSubtaskEl(texto, false, idx);
+  input.value = '';
+}
+
+function appendSubtaskEl(texto, done, idx) {
+  const list = document.getElementById('subtaskList');
+  const el = document.createElement('div');
+  el.className = 'subtask-item';
+  el.innerHTML = `
+    <input type="checkbox" ${done?'checked':''} onchange="this.nextElementSibling.classList.toggle('done',this.checked)">
+    <input type="text" class="subtask-text ${done?'done':''}" value="${texto.replace(/"/g,'&quot;')}">
+    <button class="btn-del-subtask" onclick="this.parentElement.remove()">✕</button>
+  `;
+  list.appendChild(el);
+}
+
+document.getElementById('newSubtaskInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { e.preventDefault(); addSubtask(); }
+});
+
+// ============================================
+//  EDITABLE SELECT (dropdown with add/delete)
+// ============================================
+
+// Each wrap has a hidden input to track current value
+function makeEditableSelect(wrapId, optionsKey, currentValue, placeholder) {
+  const wrap = document.getElementById(wrapId);
+  wrap.innerHTML = '';
+
+  const display = document.createElement('div');
+  display.className = 'editable-select-display';
+  display.innerHTML = `<span class="${currentValue?'':'placeholder'}" id="${wrapId}_label">${currentValue || placeholder}</span><span class="arrow">▾</span>`;
+
+  const menu = document.createElement('div');
+  menu.className = 'editable-select-menu';
+  menu.innerHTML = `
+    <div class="es-search"><span style="color:var(--muted);font-size:12px">🔍</span><input type="text" placeholder="Buscar..." id="${wrapId}_search"></div>
+    <div id="${wrapId}_list"></div>
+    <div class="es-add-row"><input type="text" placeholder="+ Nova opção..." id="${wrapId}_new"><button class="es-add-btn" onclick="esAddOption('${wrapId}','${optionsKey}')">Adicionar</button></div>
+  `;
+
+  wrap.appendChild(display);
+  wrap.appendChild(menu);
+
+  // hidden value store
+  wrap.dataset.value = currentValue || '';
+  wrap.dataset.optionsKey = optionsKey;
+
+  renderEsOptions(wrapId, optionsKey, currentValue);
+
+  // Prevent clicks inside the menu from bubbling to document (which closes dropdowns)
+  menu.addEventListener('click', e => e.stopPropagation());
+
+  display.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = menu.classList.contains('open');
+    // close all
+    document.querySelectorAll('.editable-select-menu.open').forEach(m => {
+      m.classList.remove('open');
+      m.previousElementSibling?.classList.remove('open');
+    });
+    if (!isOpen) {
+      menu.classList.add('open');
+      display.classList.add('open');
+      document.getElementById(wrapId+'_search').focus();
+    }
+  });
+
+  document.getElementById(wrapId+'_search').addEventListener('input', () => {
+    const q = document.getElementById(wrapId+'_search').value.toLowerCase();
+    document.querySelectorAll(`#${wrapId}_list .es-option`).forEach(el => {
+      el.style.display = el.dataset.val.toLowerCase().includes(q) ? '' : 'none';
+    });
+  });
+
+  document.getElementById(wrapId+'_new').addEventListener('keydown', e => {
+    if (e.key === 'Enter') { e.preventDefault(); esAddOption(wrapId, optionsKey); }
+  });
+}
+
+function renderEsOptions(wrapId, optionsKey, currentValue) {
+  const list = document.getElementById(wrapId+'_list');
+  if (!list) return;
+  list.innerHTML = '';
+
+  // "Todos" pinned option for owners
+  if (optionsKey === 'owners') {
+    const todosEl = document.createElement('div');
+    todosEl.className = 'es-option' + (currentValue === '__todos__' ? ' selected' : '');
+    todosEl.dataset.val = '__todos__';
+    todosEl.innerHTML = `<span style="font-weight:700">👥 Todos</span>`;
+    todosEl.addEventListener('click', () => esSelectOption(wrapId, '__todos__'));
+    list.appendChild(todosEl);
+  }
+
+  const opts = state.options[optionsKey] || [];
+  opts.forEach(opt => {
+    const el = document.createElement('div');
+    el.className = 'es-option' + (opt === currentValue ? ' selected' : '');
+    el.dataset.val = opt;
+    el.innerHTML = `<span>${opt}</span><span class="es-del" onclick="esDeleteOption(event,'${wrapId}','${optionsKey}','${opt.replace(/'/g,"\\'")}')">✕</span>`;
+    el.addEventListener('click', (e) => {
+      if (e.target.classList.contains('es-del')) return;
+      esSelectOption(wrapId, opt);
+    });
+    list.appendChild(el);
+  });
+}
+
+function esSelectOption(wrapId, val) {
+  const wrap = document.getElementById(wrapId);
+  wrap.dataset.value = val;
+  const label = document.getElementById(wrapId+'_label');
+  label.textContent = val === '__todos__' ? '👥 Todos' : val;
+  label.className = '';
+  renderEsOptions(wrapId, wrap.dataset.optionsKey, val);
+  wrap.querySelector('.editable-select-menu').classList.remove('open');
+  wrap.querySelector('.editable-select-display').classList.remove('open');
+}
+
+function esAddOption(wrapId, optionsKey) {
+  const input = document.getElementById(wrapId+'_new');
+  const val = input.value.trim();
+  if (!val) return;
+  if (!state.options[optionsKey]) state.options[optionsKey] = [];
+  if (!state.options[optionsKey].includes(val)) {
+    state.options[optionsKey].push(val);
+    saveState();
+  }
+  renderEsOptions(wrapId, optionsKey, document.getElementById(wrapId).dataset.value);
+  esSelectOption(wrapId, val);
+  input.value = '';
+}
+
+function esDeleteOption(e, wrapId, optionsKey, val) {
+  e.stopPropagation();
+  if (!confirm(`Remover opção "${val}"?`)) return;
+  state.options[optionsKey] = (state.options[optionsKey]||[]).filter(o => o !== val);
+  saveState();
+  const wrap = document.getElementById(wrapId);
+  if (wrap.dataset.value === val) {
+    wrap.dataset.value = '';
+    const label = document.getElementById(wrapId+'_label');
+    label.textContent = '—';
+    label.className = 'placeholder';
+  }
+  renderEsOptions(wrapId, optionsKey, wrap.dataset.value);
+}
+
+function getEditableSelectValue(wrapId) {
+  return document.getElementById(wrapId)?.dataset.value || '';
+}
+
+function initEditableSelects(alavanca, impacto, owner) {
+  makeEditableSelect('alavancaWrap', 'alavancas', alavanca, 'Selecionar...');
+  makeEditableSelect('impactoWrap',  'impactos',  impacto,  'Selecionar...');
+  makeEditableSelect('ownerWrap',    'owners',    owner,    'Selecionar...');
+}
+
+// Close editable selects on outside click
+document.addEventListener('click', () => {
+  document.querySelectorAll('.editable-select-menu.open').forEach(m => {
+    m.classList.remove('open');
+    m.previousElementSibling?.classList.remove('open');
+  });
+});
+
+// ============================================
+//  COLOR PICKER
+// ============================================
+let selectedColor = 'default';
+
+function initColorPicker(current) {
+  selectedColor = current || 'default';
+  const picker = document.getElementById('colorPicker');
+  picker.innerHTML = '';
+  CARD_COLORS.forEach(c => {
+    const sw = document.createElement('div');
+    sw.className = 'color-swatch' + (c.id === selectedColor ? ' active' : '');
+    sw.title = c.label;
+    sw.style.background = c.bg;
+    sw.style.borderColor = c.id === selectedColor ? c.border : c.border;
+    sw.style.outline = c.id === selectedColor ? `2px solid ${c.border}` : 'none';
+    sw.style.outlineOffset = '2px';
+    sw.innerHTML = `<span class="swatch-check" style="color:${c.border}">✓</span>`;
+    sw.addEventListener('click', () => {
+      selectedColor = c.id;
+      document.querySelectorAll('.color-swatch').forEach((s,i) => {
+        const cd = CARD_COLORS[i];
+        s.classList.toggle('active', cd.id === selectedColor);
+        s.style.outline = cd.id === selectedColor ? `2px solid ${cd.border}` : 'none';
+      });
+    });
+    picker.appendChild(sw);
+  });
+}
+
+function getSelectedColor() { return selectedColor; }
+
+// ============================================
+//  CSV IMPORT/EXPORT
+// ============================================
+function importCSV() {
+  document.getElementById('csvFileInput').click();
+  document.getElementById('dropdownMenu').classList.remove('open');
+}
+
+document.getElementById('csvFileInput').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: result => {
+      let count = 0;
+      result.data.forEach(row => {
+        if (!row['Título'] && !row['Titulo']) return;
+        state.cards.push({
+          id: uid(),
+          titulo:   row['Título'] || row['Titulo'] || '',
+          desc:     row['Descrição'] || row['Descricao'] || '',
+          raia:     row['Raia'] || 'Foco no resultado',
+          status:   row['Status'] || 'Não iniciado',
+          alavanca: row['Alavanca'] || '',
+          impacto:  row['Impacto'] || '',
+          owner:    row['Owner'] || '',
+          prazo:    row['Prazo'] || '',
+          subtarefas: []
+        });
+        count++;
+      });
+      saveState();
+      renderKanban();
+      toast(`✓ ${count} cards importados`);
+    }
+  });
+  this.value = '';
+});
+
+function downloadCSVTemplate() {
+  const csv = 'Raia,Título,Descrição,Status,Alavanca,Impacto,Owner,Prazo\nFazer Agora,Exemplo de card,Descrição aqui,Em andamento,Experiência do Cliente,Alto,Jhonatan Aita,2025-12-31\n';
+  download('modelo_cards.csv', csv, 'text/csv');
+  document.getElementById('dropdownMenu').classList.remove('open');
+}
+
+function exportJSON() {
+  download('cx_board_backup.json', JSON.stringify(state, null, 2), 'application/json');
+  document.getElementById('dropdownMenu').classList.remove('open');
+}
+
+function importJSON() {
+  document.getElementById('jsonFileInput').click();
+  document.getElementById('dropdownMenu').classList.remove('open');
+}
+
+document.getElementById('jsonFileInput').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = e => {
+    try {
+      const data = JSON.parse(e.target.result);
+      state = data;
+      saveState();
+      renderAll();
+      toast('✓ Backup importado com sucesso');
+    } catch(err) { toast('❌ Erro ao importar JSON'); }
+  };
+  reader.readAsText(file);
+  this.value = '';
+});
+
+function loadExample() {
+  if (state.cards.length && !confirm('Isso substituirá os cards atuais. Continuar?')) return;
+  state.cards = getExampleCards();
+  saveState();
+  renderKanban();
+  toast('✓ Exemplo carregado');
+  document.getElementById('dropdownMenu').classList.remove('open');
+}
+
+function clearAll() {
+  if (!confirm('Limpar todos os dados? Esta ação não pode ser desfeita.')) return;
+  state = { cards:[], tls: getInitialLeaders(), kpis: getInitialKPIs() };
+  saveState();
+  renderAll();
+  toast('Dados limpos');
+  document.getElementById('dropdownMenu').classList.remove('open');
+}
+
+function download(filename, content, type) {
+  try {
+    const blob = new Blob([content], { type: type + ';charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => { URL.revokeObjectURL(url); document.body.removeChild(a); }, 100);
+  } catch(e) {
+    // fallback for sandboxed environments
+    const a = document.createElement('a');
+    a.href = 'data:' + type + ';charset=utf-8,' + encodeURIComponent(content);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+  }
+}
+
+// ============================================
+//  LEADERS TABLE
+// ============================================
+const LEADER_COLS    = ['nome','cargo','step','admissao','tempo','merito','eixoX','eixoY','conceito','quadrante','nps','enps','fav'];
+const LEADER_HEADERS = ['Nome','Cargo','Step','Admissão','Tempo de casa','Último mérito','Eixo X','Eixo Y','Conceito','Quadrante','NPS Lid.','eNPS','Fav.'];
+
+function get9boxInfo(q) {
+  const map = {
+    Q1:{label:'Q1 · Atenção',cls:'ninebox-atencao'},
+    Q2:{label:'Q2 · Posso Mais',cls:'ninebox-posso-mais'},
+    Q3:{label:'Q3 · Posso Mais',cls:'ninebox-posso-mais'},
+    Q4:{label:'Q4 · Posso Mais',cls:'ninebox-posso-mais'},
+    Q5:{label:'Q5 · Fui Além',cls:'ninebox-fui-alem'},
+    Q6:{label:'Q6 · Posso Mais',cls:'ninebox-posso-mais'},
+    Q7:{label:'Q7 · Fui Além',cls:'ninebox-fui-alem'},
+    Q8:{label:'Q8 · Fui Além',cls:'ninebox-fui-alem'},
+    Q9:{label:'Q9 · Fiz História',cls:'ninebox-fui-alem'},
+  };
+  return map[q] || {label:q||'—',cls:'ninebox-posso-mais'};
+}
+
+function calc9box(eixoX, eixoY) {
+  const x = parseFloat((eixoX||'0').replace(',','.'));
+  const y = parseFloat((eixoY||'0').replace(',','.'));
+  if (isNaN(x)||isNaN(y)) return null;
+  const col = x <= 2.66 ? 0 : x <= 3.66 ? 1 : 2;
+  const row = y <= 2.66 ? 0 : y <= 3.66 ? 1 : 2;
+  const grid = [['Q1','Q3','Q6'],['Q2','Q5','Q8'],['Q4','Q7','Q9']];
+  return grid[row][col];
+}
+
+function renderLeadersTable() {
+  const tbody = document.getElementById('leadersBody');
+  tbody.innerHTML = '';
+
+  const visible = state.tls.filter(tl => state.showArchived ? tl.archived : !tl.archived);
+
+  // update/create archived toggle btn
+  let archBtn = document.getElementById('btnShowArchived');
+  const archivedCount = state.tls.filter(t=>t.archived).length;
+  if (!archBtn) {
+    archBtn = document.createElement('button');
+    archBtn.id = 'btnShowArchived';
+    archBtn.className = 'btn-add-row';
+    archBtn.style.marginLeft = '12px';
+    archBtn.onclick = toggleArchivedLeaders;
+    document.querySelector('#panel-gestao .btn-add-row')?.parentNode?.insertBefore(archBtn, document.querySelector('#panel-gestao .btn-add-row').nextSibling);
+  }
+  archBtn.textContent = state.showArchived
+    ? `👁 Ocultar arquivados`
+    : `📦 Ver arquivados (${archivedCount})`;
+  archBtn.style.display = archivedCount > 0 ? '' : 'none';
+
+  visible.forEach(tl => {
+    const tr = document.createElement('tr');
+    tr.dataset.id = tl.id;
+    if (tl.archived) tr.style.opacity = '.55';
+
+    LEADER_COLS.forEach(col => {
+      const td = document.createElement('td');
+      td.className = 'editable';
+      td.contentEditable = 'false';
+
+      if (col === 'quadrante') {
+        const q = tl[col] || calc9box(tl.eixoX, tl.eixoY) || '—';
+        const info = get9boxInfo(q);
+        td.innerHTML = `<span class="ninebox-badge ${info.cls}" style="font-size:10.5px">${info.label}</span>`;
+      } else if (col === 'admissao') {
+        td.textContent = tl[col] ? formatDate(tl[col]) : '—';
+      } else {
+        td.textContent = tl[col] || '—';
+      }
+
+      td.addEventListener('dblclick', e => {
+        e.stopPropagation();
+        td.contentEditable = 'true'; td.focus();
+        const r = document.createRange(); r.selectNodeContents(td);
+        window.getSelection().removeAllRanges(); window.getSelection().addRange(r);
+      });
+      td.addEventListener('blur', () => {
+        td.contentEditable = 'false';
+        const val = td.innerText.trim();
+        const leader = state.tls.find(t => t.id === tl.id);
+        if (leader) {
+          leader[col] = val === '—' ? '' : val;
+          if (col === 'quadrante') {
+            const info = get9boxInfo(val);
+            td.innerHTML = `<span class="ninebox-badge ${info.cls}" style="font-size:10.5px">${info.label}</span>`;
+          }
+          saveState();
+        }
+      });
+      td.addEventListener('keydown', e => { if (e.key==='Enter'){e.preventDefault();td.blur();} });
+      tr.appendChild(td);
+    });
+
+    // Archive / Restore button
+    const tdAction = document.createElement('td');
+    if (tl.archived) {
+      const restBtn = document.createElement('button');
+      restBtn.className = 'btn-remove';
+      restBtn.title = 'Restaurar';
+      restBtn.textContent = '↩';
+      restBtn.style.fontSize = '14px';
+      restBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        tl.archived = false;
+        saveState(); renderLeadersTable(); toast('✓ Líder restaurado');
+      });
+      tdAction.appendChild(restBtn);
+    } else {
+      const archBtn2 = document.createElement('button');
+      archBtn2.className = 'btn-remove';
+      archBtn2.title = 'Arquivar líder';
+      archBtn2.textContent = '📦';
+      archBtn2.style.fontSize = '13px';
+      archBtn2.addEventListener('click', e => {
+        e.stopPropagation();
+        if (archBtn2.dataset.confirming === 'true') {
+          archiveLeader(tl.id);
+        } else {
+          archBtn2.dataset.confirming = 'true';
+          archBtn2.textContent = '✓ Confirmar';
+          archBtn2.style.cssText = 'background:#fff4e8;color:#b85a10;border:1px solid #F47920;border-radius:5px;padding:2px 7px;cursor:pointer;font-size:12px;font-family:var(--font);';
+          setTimeout(() => {
+            if (archBtn2.dataset.confirming === 'true') {
+              archBtn2.dataset.confirming = 'false';
+              archBtn2.textContent = '📦';
+              archBtn2.style.cssText = 'font-size:13px;';
+            }
+          }, 3000);
+        }
+      });
+      tdAction.appendChild(archBtn2);
+    }
+    tr.appendChild(tdAction);
+
+    tr.style.cursor = 'pointer';
+    tr.addEventListener('click', e => {
+      if (tdAction.contains(e.target)) return;
+      if (window.getSelection().toString()) return;
+      if (!tl.archived) openLeaderDetail(tl.id);
+    });
+    tbody.appendChild(tr);
+  });
+}
+
+function archiveLeader(id) {
+  const tl = state.tls.find(t => t.id === id);
+  if (!tl) return;
+  tl.archived = true;
+  saveState(); renderLeadersTable(); toast('📦 Líder arquivado');
+}
+
+function toggleArchivedLeaders() {
+  state.showArchived = !state.showArchived;
+  saveState(); renderLeadersTable();
+  const btn = document.getElementById('btnShowArchived');
+  if (btn) btn.textContent = state.showArchived ? '👁 Ocultar arquivados' : '📦 Ver arquivados';
+}
+
+function addLeader() {
+  state.tls.push({ id:uid(), nome:'Novo Líder', cargo:'LEAD I - EXPERIÊNCIA DO CLIENTE',
+    step:'A', admissao:'', tempo:'', merito:'', eixoX:'', eixoY:'',
+    conceito:'', quadrante:'Q5', nps:'', enps:'', fav:'', oons:[], avaliacoes:[] });
+  saveState(); renderLeadersTable();
+  document.getElementById('leadersBody').lastElementChild?.scrollIntoView({behavior:'smooth',block:'center'});
+}
+
+// ============================================
+//  LEADER DETAIL
+// ============================================
+let perfFiles = []; // { name, text }
+let lastQRResult = null;
+
+function openLeaderDetail(id) {
+  const tl = state.tls.find(t => t.id === id);
+  if (!tl) return;
+  currentLeaderId = id;
+
+  // Topbar summary
+  const initials = tl.nome.split(' ').map(w=>w[0]).slice(0,2).join('');
+  const q = tl.quadrante || calc9box(tl.eixoX, tl.eixoY) || '—';
+  const qInfo = get9boxInfo(q);
+  document.getElementById('detailProfileSummary').innerHTML = `
+    <div class="detail-avatar">${initials}</div>
+    <div>
+      <div class="detail-profile-name">${tl.nome}</div>
+      <div class="detail-profile-cargo">${tl.cargo}</div>
+    </div>
+    <div style="margin-left:12px;"><span class="ninebox-badge ${qInfo.cls}">${qInfo.label}</span></div>
+  `;
+
+  // Profile strip
+  const stats = [
+    ['Step',         tl.step||'—',       ''],
+    ['Admissão',     formatDate(tl.admissao)||'—', ''],
+    ['Tempo de casa',tl.tempo||'—',      ''],
+    ['Último mérito',tl.merito||'—',     ''],
+    ['Eixo X (Res.)',tl.eixoX||'—',      parseFloat((tl.eixoX||'0').replace(',','.'))<2.66?'highlight-pink':'highlight-green'],
+    ['Eixo Y (Princ.)',tl.eixoY||'—',   parseFloat((tl.eixoY||'0').replace(',','.'))<2.66?'highlight-pink':'highlight-green'],
+    ['NPS Liderança',tl.nps||'—',        ''],
+    ['eNPS',         tl.enps||'—',       ''],
+    ['Favorabilidade',tl.fav||'—',       ''],
+  ];
+  document.getElementById('detailProfileStrip').innerHTML = stats.map(([l,v,cls])=>`
+    <div class="profile-stat">
+      <div class="profile-stat-label">${l}</div>
+      <div class="profile-stat-value ${cls}">${v}</div>
+    </div>
+  `).join('');
+
+  // Reset performance section
+  perfFiles = [];
+  lastQRResult = null;
+  document.getElementById('perfFilesList').innerHTML = '';
+  document.getElementById('perfContextText').value = '';
+  document.getElementById('perfPeriod').value = '';
+  document.getElementById('qrOutput').style.display = 'none';
+  document.getElementById('nineboxResult').style.display = 'none';
+
+  // Render 1:1s, feedbacks and evaluations
+  renderFeedbackList(tl);
+  renderOonList(tl);
+  renderAvaliacoesHistory(tl);
+  renderMonthSummary(tl);
+
+  document.getElementById('leader-detail').classList.add('open');
+}
+
+function closeLeaderDetail() {
+  document.getElementById('leader-detail').classList.remove('open');
+  currentLeaderId = null;
+}
+
+// ============================================
+//  1:1 SECTION
+// ============================================
+function renderOonList(tl) {
+  const list = document.getElementById('oonList');
+  const oons = tl.oons || [];
+  if (!oons.length) { list.innerHTML = '<div class="empty-state">Nenhum 1:1 registrado ainda.</div>'; return; }
+  list.innerHTML = oons.slice().reverse().map(oon => `
+    <div class="oon-item" id="oon-${oon.id}">
+      <div class="oon-header">
+        <span class="oon-date">${oon.data||'—'}</span>
+        <div style="display:flex;align-items:center;gap:6px;margin-left:auto;">
+          ${oon.link ? `<a class="oon-link" href="${oon.link}" target="_blank">📎 Drive</a>` : ''}
+          <button onclick="reanalyzOon('${oon.id}')" style="background:none;border:1px solid var(--border);border-radius:5px;padding:2px 8px;font-size:10px;cursor:pointer;font-family:var(--font);color:var(--muted);" title="Resumir com IA">✨ IA</button>
+          <button class="btn-remove" onclick="deleteOon('${oon.id}')">✕</button>
+        </div>
+      </div>
+      <div class="oon-summary" id="oon-text-${oon.id}">${oon.resumo||''}</div>
+    </div>
+  `).join('');
+}
+
+async function reanalyzOon(oonId) {
+  const tl = state.tls.find(t=>t.id===currentLeaderId);
+  if (!tl) return;
+  const oon = (tl.oons||[]).find(o=>o.id===oonId);
+  if (!oon || !oon.resumo) { toast('⚠ Nenhum texto para analisar'); return; }
+  if (!GEMINI_KEY) { toast('⚠ Configure a chave Gemini primeiro'); openKeyModal(); return; }
+
+  const btn = document.querySelector(`#oon-${oonId} button[onclick*="reanalyz"]`);
+  if (btn) { btn.innerHTML = '<span class="loading-spinner"></span>'; btn.disabled = true; }
+
+  const prompt = `Você é gestor de liderança experiente. Analise a transcrição/notas do 1:1 com o(a) líder "${tl.nome}" e retorne um resumo no formato EXATO:
+
+**[TÍTULO: tema central em uma frase]**
+[1 parágrafo objetivo do que foi discutido]
+**Combinados:**
+• combinado 1
+• combinado 2
+• combinado 3
+
+Seja conciso e foque no que é acionável.
+
+---
+TRANSCRIÇÃO:
+${oon.resumo}`;
+
+  try {
+    const resumo = await geminiGenerate(prompt);
+    oon.resumo = resumo;
+    saveState();
+    document.getElementById(`oon-text-${oonId}`).textContent = resumo;
+    toast('✓ 1:1 resumido');
+  } catch(e) {
+    toast('❌ Erro Gemini: '+e.message);
+  } finally {
+    if (btn) { btn.innerHTML = '✨ IA'; btn.disabled = false; }
+  }
+}
+
+function deleteOon(oonId) {
+  const tl = state.tls.find(t=>t.id===currentLeaderId);
+  if (!tl) return;
+  tl.oons = (tl.oons||[]).filter(o=>o.id!==oonId);
+  saveState(); renderOonList(tl); renderMonthSummary(tl);
+}
+
+// ============================================
+//  FEEDBACKS
+// ============================================
+const FB_TYPE_LABELS = {
+  positivo:       { label:'👍 Positivo',       cls:'fb-positivo' },
+  desenvolvimento:{ label:'📈 Desenvolvimento', cls:'fb-desenvolvimento' },
+  observacao:     { label:'👁 Observação',      cls:'fb-observacao' },
+  reconhecimento: { label:'⭐ Reconhecimento',  cls:'fb-reconhecimento' },
+};
+
+function openFeedbackModal() {
+  document.getElementById('feedbackDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('feedbackType').value = 'positivo';
+  document.getElementById('feedbackContext').value = '';
+  document.getElementById('feedbackText').value = '';
+  document.getElementById('feedbackPrinciple').value = '';
+  document.getElementById('feedbackModal').classList.add('open');
+}
+
+function closeFeedbackModal() {
+  document.getElementById('feedbackModal').classList.remove('open');
+}
+
+function saveFeedback() {
+  const text = document.getElementById('feedbackText').value.trim();
+  if (!text) { toast('⚠ Descreva o feedback'); return; }
+  const tl = state.tls.find(t=>t.id===currentLeaderId);
+  if (!tl) return;
+  if (!tl.feedbacks) tl.feedbacks = [];
+  tl.feedbacks.push({
+    id:        uid(),
+    date:      document.getElementById('feedbackDate').value,
+    type:      document.getElementById('feedbackType').value,
+    context:   document.getElementById('feedbackContext').value.trim(),
+    text,
+    principle: document.getElementById('feedbackPrinciple').value,
+  });
+  saveState();
+  renderFeedbackList(tl);
+  closeFeedbackModal();
+  toast('✓ Feedback salvo');
+}
+
+function deleteFeedback(fbId) {
+  const tl = state.tls.find(t=>t.id===currentLeaderId);
+  if (!tl) return;
+  tl.feedbacks = (tl.feedbacks||[]).filter(f=>f.id!==fbId);
+  saveState(); renderFeedbackList(tl);
+}
+
+function renderFeedbackList(tl) {
+  const list = document.getElementById('feedbackList');
+  const fbs  = tl.feedbacks || [];
+  if (!fbs.length) {
+    list.innerHTML = '<div class="empty-state">Nenhum feedback registrado ainda.</div>';
+    return;
+  }
+  list.innerHTML = fbs.slice().reverse().map(fb => {
+    const typeInfo = FB_TYPE_LABELS[fb.type] || { label: fb.type, cls:'fb-observacao' };
+    return `<div class="feedback-item">
+      <button class="feedback-del" onclick="deleteFeedback('${fb.id}')">✕</button>
+      <div class="feedback-header">
+        <span class="feedback-date">${fb.date ? formatDate(fb.date) : '—'}</span>
+        <span class="feedback-type-badge ${typeInfo.cls}">${typeInfo.label}</span>
+      </div>
+      ${fb.context ? `<div class="feedback-context">📍 ${fb.context}</div>` : ''}
+      <div class="feedback-text">${fb.text}</div>
+      ${fb.principle ? `<div class="feedback-principle">🔖 ${fb.principle}</div>` : ''}
+    </div>`;
+  }).join('');
+}
+
+function openNewOon() {
+  document.getElementById('oonDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('oonLink').value = '';
+  document.getElementById('oonText').value = '';
+  document.getElementById('oonModal').classList.add('open');
+}
+function closeOonModal() { document.getElementById('oonModal').classList.remove('open'); }
+
+document.getElementById('oonFileInput').addEventListener('change', async function() {
+  const file = this.files[0]; if (!file) return;
+  document.getElementById('oonText').value = await readFileText(file);
+  this.value = '';
+});
+
+async function analyzeOon() {
+  const text = document.getElementById('oonText').value.trim();
+  if (!text) { toast('⚠ Adicione o texto do 1:1'); return; }
+  if (!GEMINI_KEY) { toast('⚠ Configure a chave Gemini'); closeOonModal(); openKeyModal(); return; }
+  const tl = state.tls.find(t=>t.id===currentLeaderId);
+  const btn = document.getElementById('btnAnalyzeOon');
+  btn.innerHTML = '<span class="loading-spinner"></span> Analisando...';
+  btn.disabled = true;
+  const prompt = `Você é gestor de liderança experiente. Analise a transcrição/notas do 1:1 com o(a) líder "${tl?.nome||'Líder'}" e retorne um resumo no formato EXATO:
+
+**[TÍTULO: tema central em uma frase]**
+[1 parágrafo objetivo do que foi discutido]
+**Combinados:**
+• combinado 1
+• combinado 2
+• combinado 3
+
+Seja conciso e foque no que é acionável.
+
+---
+TRANSCRIÇÃO:
+${text}`;
+  try {
+    const resumo = await geminiGenerate(prompt);
+    saveOon(document.getElementById('oonDate').value, document.getElementById('oonLink').value.trim(), resumo);
+    closeOonModal(); toast('✓ 1:1 salvo');
+  } catch(e) { toast('❌ Erro Gemini: '+e.message); }
+  finally { btn.innerHTML='✨ Analisar com IA'; btn.disabled=false; }
+}
+
+function saveOonManual() {
+  const text = document.getElementById('oonText').value.trim();
+  if (!text) { toast('⚠ Adicione o texto'); return; }
+  saveOon(document.getElementById('oonDate').value, document.getElementById('oonLink').value.trim(), text);
+  closeOonModal(); toast('✓ 1:1 salvo');
+}
+
+function saveOon(data, link, resumo) {
+  const tl = state.tls.find(t=>t.id===currentLeaderId);
+  if (!tl) return;
+  if (!tl.oons) tl.oons = [];
+  tl.oons.push({ id:uid(), data: data?formatDate(data):'—', link, resumo });
+  saveState(); renderOonList(tl); renderMonthSummary(tl);
+}
+
+// Import from Drive — Google blocks CORS on fetch, so we open the doc + prompt paste
+async function importFromDrive() {
+  const url = document.getElementById('driveTranscriptUrl').value.trim();
+  if (!url) { toast('⚠ Cole o link do Drive'); return; }
+
+  // Open the doc in a new tab for the user to copy
+  window.open(url, '_blank');
+
+  // Pre-fill oon modal with the link and ask user to paste
+  document.getElementById('oonDate').value = new Date().toISOString().split('T')[0];
+  document.getElementById('oonLink').value = url;
+  document.getElementById('oonText').value = '';
+  document.getElementById('driveTranscriptUrl').value = '';
+  document.getElementById('oonModal').classList.add('open');
+
+  // Show hint in textarea
+  setTimeout(() => {
+    const ta = document.getElementById('oonText');
+    ta.placeholder = 'O documento foi aberto numa nova aba. Selecione tudo (Ctrl+A), copie (Ctrl+C) e cole aqui (Ctrl+V).';
+    ta.focus();
+  }, 300);
+
+  toast('📄 Documento aberto — copie o texto e cole no campo abaixo');
+}
+
+// Month summary
+function renderMonthSummary(tl) {
+  const oons = (tl.oons||[]);
+  const lastMonth = oons.length ? oons[oons.length-1] : null;
+  const el = document.getElementById('monthSummaryContent');
+  if (!oons.length) {
+    el.style.fontStyle = 'italic'; el.style.color = 'var(--muted)';
+    el.textContent = 'Adicione 1:1s para gerar o resumo do mês automaticamente.';
+  } else {
+    el.style.fontStyle = '';
+    if (tl.monthSummary) {
+      el.style.color = 'var(--text)';
+      el.textContent = tl.monthSummary;
+    }
+  }
+}
+
+async function generateMonthSummary() {
+  const tl = state.tls.find(t=>t.id===currentLeaderId);
+  if (!tl || !tl.oons?.length) { toast('⚠ Nenhum 1:1 registrado'); return; }
+  if (!GEMINI_KEY) { toast('⚠ Configure a chave Gemini'); openKeyModal(); return; }
+
+  const btn = document.getElementById('btnMonthSummary');
+  btn.innerHTML = '<span class="loading-spinner"></span> Gerando...';
+  btn.disabled = true;
+
+  const oonTexts = tl.oons.slice(-4).map(o => `[${o.data}]\n${o.resumo}`).join('\n\n---\n\n');
+  const prompt = `Com base nos últimos 1:1s com o(a) líder "${tl.nome}", gere um resumo executivo do momento atual dessa pessoa (máximo 4 frases). Cubra: sentimento geral, engajamento, principais temas recorrentes, e um sinal de atenção se houver. Seja direto e útil para uma gestora avaliar rapidamente o estado dessa pessoa.
+
+HISTÓRICO DE 1:1s:
+${oonTexts}`;
+
+  try {
+    const result = await geminiGenerate(prompt);
+    tl.monthSummary = result;
+    saveState();
+    const el = document.getElementById('monthSummaryContent');
+    el.style.fontStyle = ''; el.style.color = 'var(--text)';
+    el.textContent = result;
+    toast('✓ Resumo do mês gerado');
+  } catch(e) { toast('❌ Erro Gemini: '+e.message); }
+  finally { btn.innerHTML='✨ Gerar resumo do mês'; btn.disabled=false; }
+}
+
+// ============================================
+//  PERFORMANCE — QR ANSWER GENERATOR
+// ============================================
+document.getElementById('perfFilesInput').addEventListener('change', async function() {
+  for (const file of this.files) {
+    const text = await readFileText(file);
+    perfFiles.push({ name: file.name, text });
+    addPerfFileChip(file.name, perfFiles.length-1);
+  }
+  this.value = '';
+});
+
+function addPerfFileChip(name, idx) {
+  const list = document.getElementById('perfFilesList');
+  const chip = document.createElement('div');
+  chip.className = 'perf-file-chip';
+  chip.id = `pchip-${idx}`;
+  chip.innerHTML = `<span style="font-size:14px">📄</span><span class="chip-name">${name}</span><span class="chip-del" onclick="removePerfFile(${idx})">✕</span>`;
+  list.appendChild(chip);
+}
+
+function removePerfFile(idx) {
+  perfFiles[idx] = null;
+  const chip = document.getElementById(`pchip-${idx}`);
+  if (chip) chip.remove();
+}
+
+async function generateQRAnswers() {
+  const tl = state.tls.find(t=>t.id===currentLeaderId);
+  if (!tl) return;
+  if (!GEMINI_KEY) { toast('⚠ Configure a chave Gemini'); openKeyModal(); return; }
+
+  const docs        = perfFiles.filter(Boolean).map(f=>`=== ${f.name} ===\n${f.text}`).join('\n\n');
+  const context     = document.getElementById('perfContextText').value.trim();
+  const period      = document.getElementById('perfPeriod').value.trim() || 'período recente';
+  const oonContext  = (tl.oons||[]).slice(-4).map(o=>`[${o.data}] ${o.resumo}`).join('\n');
+
+  // Feedbacks — grouped by type for clarity
+  const fbList = (tl.feedbacks||[]);
+  const fbContext = fbList.length ? fbList.map(fb => {
+    const typeLabel = { positivo:'Positivo', desenvolvimento:'Desenvolvimento', observacao:'Observação', reconhecimento:'Reconhecimento' }[fb.type] || fb.type;
+    return `[${fb.date ? formatDate(fb.date) : '—'}] [${typeLabel}]${fb.principle?' ['+fb.principle+']':''}${fb.context?' ('+fb.context+')':''}: ${fb.text}`;
+  }).join('\n') : '';
+
+  if (!docs && !context && !oonContext && !fbContext) {
+    toast('⚠ Adicione documentos, feedbacks ou contexto antes de gerar'); return;
+  }
+
+  const btn = document.getElementById('btnGenerateQR');
+  btn.innerHTML = '<span class="loading-spinner"></span> Gerando respostas...';
+  btn.disabled = true;
+
+  const prompt = `Você é Bruna Ricci, gestora de líderes de CX na Creditas, fazendo a avaliação de performance de ${tl.nome} referente ao período ${period}.
+
+Com base nos materiais abaixo, gere as respostas PRONTAS para preencher na plataforma Qulture Rocks. O output deve seguir EXATAMENTE este formato JSON (retorne apenas o JSON, sem markdown):
+
+{
+  "resultados": {
+    "projeto1_escala": "Dentro do esperado|Acima do esperado|Muito acima do esperado|Abaixo do esperado|Muito abaixo do esperado",
+    "projeto2_escala": "mesma escala ou N/A",
+    "projeto3_escala": "mesma escala ou N/A",
+    "justificativa_resultados": "texto com métricas, resultados atingidos e impacto gerado"
+  },
+  "principios": {
+    "seja_inconformista": "Não demonstrou|Demonstrou raramente|Demonstrou de forma adequada|Demonstrou com excelência|Referência cultural",
+    "vai_la_e_faz": "mesma escala",
+    "paixao_pela_experiencia": "mesma escala",
+    "alta_performance_na_veia": "mesma escala",
+    "reaprender_rapido": "mesma escala",
+    "valorizamos_as_diferencas": "mesma escala",
+    "direto_ao_ponto": "mesma escala",
+    "mais_com_menos": "mesma escala",
+    "crie_sua_historia": "mesma escala",
+    "destaques_positivos": "texto descritivo dos 2 princípios mais fortes com exemplos concretos",
+    "oportunidades_desenvolvimento": "texto descritivo dos 2 princípios com mais espaço de crescimento com exemplos concretos"
+  },
+  "scores": {
+    "eixo_x_resultados": número entre 1 e 5,
+    "eixo_y_principios": número entre 1 e 5,
+    "conceito_final": número entre 1 e 5,
+    "quadrante_9box": "Q1|Q2|Q3|Q4|Q5|Q6|Q7|Q8|Q9",
+    "classificacao": "Atenção|Posso Mais|Fui Além|Fiz História"
+  }
+}
+
+REGRAS DO 9BOX:
+- Eixo X ≤ 2.66 e Eixo Y ≤ 2.66 → Q1 Atenção
+- Eixo X ≤ 2.66 e Eixo Y ≤ 3.66 → Q2 Posso Mais
+- Eixo X ≤ 3.66 e Eixo Y ≤ 2.66 → Q3 Posso Mais
+- Eixo X ≤ 2.66 e Eixo Y > 3.66  → Q4 Posso Mais
+- Eixo X ≤ 3.66 e Eixo Y ≤ 3.66 → Q5 Fui Além
+- Eixo X > 3.66 e Eixo Y ≤ 2.66  → Q6 Posso Mais
+- Eixo X ≤ 3.66 e Eixo Y > 3.66  → Q7 Fui Além
+- Eixo X > 3.66 e Eixo Y ≤ 3.66  → Q8 Fui Além
+- Eixo X > 3.66 e Eixo Y > 3.66  → Q9 Fiz História
+
+MATERIAIS DE CONTEXTO:
+${docs}
+
+${context ? `CONTEXTO ADICIONAL DA GESTORA:\n${context}` : ''}
+
+${oonContext ? `HISTÓRICO RECENTE DE 1:1s:\n${oonContext}` : ''}
+
+${fbContext ? `FEEDBACKS REGISTRADOS:\n${fbContext}` : ''}`;
+
+  try {
+    const raw = await geminiGenerate(prompt);
+    const clean = raw.replace(/```json|```/g,'').trim();
+    const data  = JSON.parse(clean);
+    lastQRResult = { data, period, leaderId: currentLeaderId };
+    renderQROutput(data, tl);
+    toast('✓ Respostas geradas!');
+  } catch(e) {
+    toast('❌ Erro: '+e.message);
+    console.error(e);
+  } finally {
+    btn.innerHTML='✨ Gerar respostas para Qulture Rocks';
+    btn.disabled=false;
+  }
+}
+
+const ESCALA_PRINCIPIO_MAP = {
+  'Não demonstrou':1, 'Demonstrou raramente':2, 'Demonstrou de forma adequada':3,
+  'Demonstrou com excelência':4, 'Referência cultural':5
+};
+const ESCALA_RESULTADO_MAP = {
+  'Muito abaixo do esperado':1, 'Abaixo do esperado':2, 'Dentro do esperado':3,
+  'Acima do esperado':4, 'Muito acima do esperado':5
+};
+
+function renderQROutput(data, tl) {
+  const out = document.getElementById('qrOutputContent');
+  const principioLabels = {
+    seja_inconformista:'Seja inconformista', vai_la_e_faz:'Vai lá e faz',
+    paixao_pela_experiencia:'Paixão pela experiência', alta_performance_na_veia:'Alta performance na veia',
+    reaprender_rapido:'(Re)aprender rápido', valorizamos_as_diferencas:'Valorizamos as diferenças',
+    direto_ao_ponto:'Direto ao ponto', mais_com_menos:'Mais com menos', crie_sua_historia:'Crie sua história'
+  };
+
+  const res = data.resultados;
+  const pri = data.principios;
+  const sc  = data.scores;
+
+  out.innerHTML = `
+    <div class="qr-section">
+      <div class="qr-section-title">📊 Avaliando Resultados</div>
+      <div class="qr-field"><div class="qr-field-label">Projeto/Entregável 1</div><span class="qr-scale">${res.projeto1_escala}</span></div>
+      <div class="qr-field"><div class="qr-field-label">Projeto/Entregável 2</div><span class="qr-scale">${res.projeto2_escala}</span></div>
+      <div class="qr-field"><div class="qr-field-label">Projeto/Entregável 3</div><span class="qr-scale">${res.projeto3_escala}</span></div>
+      <div class="qr-field"><div class="qr-field-label">Justificativa (métricas e impacto)</div><div class="qr-field-value">${res.justificativa_resultados}</div></div>
+    </div>
+    <div class="qr-section">
+      <div class="qr-section-title">🌟 Avaliando Princípios da Liderança</div>
+      ${Object.entries(principioLabels).map(([k,l])=>`
+        <div class="qr-field"><div class="qr-field-label">${l}</div><span class="qr-scale">${pri[k]||'—'}</span></div>
+      `).join('')}
+      <div class="qr-field" style="margin-top:10px"><div class="qr-field-label">✨ Destaques positivos</div><div class="qr-field-value">${pri.destaques_positivos}</div></div>
+      <div class="qr-field"><div class="qr-field-label">📈 Oportunidades de desenvolvimento</div><div class="qr-field-value">${pri.oportunidades_desenvolvimento}</div></div>
+    </div>
+  `;
+
+  // 9box result
+  const qInfo = get9boxInfo(sc.quadrante_9box);
+  const nbEl  = document.getElementById('nineboxResult');
+  nbEl.style.display = 'block';
+  nbEl.className = '';
+  nbEl.style.cssText = `margin-top:14px;padding:14px;border-radius:8px;text-align:center;display:block;`;
+  const colors = { 'ninebox-fui-alem':'#f0fae0;border:1px solid #8DC63F', 'ninebox-posso-mais':'#fff0e0;border:1px solid #F47920', 'ninebox-atencao':'#fde8f1;border:1px solid #E9457A' };
+  nbEl.style.background = (colors[qInfo.cls]||'#f0fae0;border:1px solid #ccc').split(';border:')[0];
+  nbEl.style.border = '1px solid ' + (colors[qInfo.cls]||'').split('solid ')[1];
+  document.getElementById('nineboxLabel').innerHTML = `<span class="ninebox-badge ${qInfo.cls}" style="font-size:16px;padding:6px 16px">${qInfo.label}</span>`;
+  document.getElementById('nineboxSub').textContent = `Eixo X: ${sc.eixo_x_resultados} · Eixo Y: ${sc.eixo_y_principios} · Conceito: ${sc.conceito_final}`;
+
+  document.getElementById('qrOutput').style.display = 'block';
+}
+
+function copyQROutput() {
+  if (!lastQRResult) return;
+  const d = lastQRResult.data;
+  const p = d.principios;
+  const r = d.resultados;
+  const s = d.scores;
+  const principioLabels = ['Seja inconformista','Vai lá e faz','Paixão pela experiência','Alta performance na veia','(Re)aprender rápido','Valorizamos as diferenças','Direto ao ponto','Mais com menos','Crie sua história'];
+  const principioKeys   = ['seja_inconformista','vai_la_e_faz','paixao_pela_experiencia','alta_performance_na_veia','reaprender_rapido','valorizamos_as_diferencas','direto_ao_ponto','mais_com_menos','crie_sua_historia'];
+
+  const text = `=== AVALIAÇÃO DE PERFORMANCE — ${lastQRResult.period} ===
+
+--- RESULTADOS ---
+Projeto 1: ${r.projeto1_escala}
+Projeto 2: ${r.projeto2_escala}
+Projeto 3: ${r.projeto3_escala}
+
+Justificativa:
+${r.justificativa_resultados}
+
+--- PRINCÍPIOS ---
+${principioLabels.map((l,i)=>`${l}: ${p[principioKeys[i]]}`).join('\n')}
+
+Destaques positivos:
+${p.destaques_positivos}
+
+Oportunidades de desenvolvimento:
+${p.oportunidades_desenvolvimento}
+
+--- SCORES ---
+Eixo X (Resultados): ${s.eixo_x_resultados}
+Eixo Y (Princípios): ${s.eixo_y_principios}
+Conceito final: ${s.conceito_final}
+Quadrante: ${s.quadrante_9box} — ${s.classificacao}
+`;
+  navigator.clipboard.writeText(text).then(()=>toast('✓ Copiado!')).catch(()=>toast('❌ Erro ao copiar'));
+}
+
+function saveEvaluation() {
+  if (!lastQRResult) return;
+  const tl = state.tls.find(t=>t.id===currentLeaderId);
+  if (!tl) return;
+  if (!tl.avaliacoes) tl.avaliacoes = [];
+
+  const d = lastQRResult.data;
+  tl.avaliacoes.push({
+    id: uid(),
+    period: lastQRResult.period,
+    data: new Date().toISOString().split('T')[0],
+    scores: d.scores,
+    resultados: d.resultados,
+    principios: d.principios,
+  });
+
+  // Update leader's 9box data from evaluation
+  if (d.scores) {
+    tl.eixoX    = d.scores.eixo_x_resultados?.toString().replace('.',',') || tl.eixoX;
+    tl.eixoY    = d.scores.eixo_y_principios?.toString().replace('.',',') || tl.eixoY;
+    tl.conceito = d.scores.classificacao || tl.conceito;
+    tl.quadrante= d.scores.quadrante_9box || tl.quadrante;
+  }
+
+  saveState();
+  renderAvaliacoesHistory(tl);
+  toast('✓ Avaliação salva no histórico');
+}
+
+function renderAvaliacoesHistory(tl) {
+  const el = document.getElementById('avaliacoesHistory');
+  const avs = tl.avaliacoes || [];
+  if (!avs.length) { el.innerHTML = ''; return; }
+
+  el.innerHTML = `
+    <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.5px;color:var(--muted);margin-bottom:8px;">Histórico de avaliações</div>
+    ${avs.slice().reverse().map(av => {
+      const qI = get9boxInfo(av.scores?.quadrante_9box);
+      return `<div class="eval-hist-item">
+        <div class="eval-hist-header">
+          <span class="eval-hist-period">${av.period}</span>
+          <span class="ninebox-badge ${qI.cls}" style="font-size:10px">${qI.label}</span>
+          <button class="btn-remove" onclick="deleteAvaliacao('${av.id}')">✕</button>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:4px;">
+          Eixo X: ${av.scores?.eixo_x_resultados||'—'} · Eixo Y: ${av.scores?.eixo_y_principios||'—'} · Conceito: ${av.scores?.conceito_final||'—'}
+        </div>
+      </div>`;
+    }).join('')}
+  `;
+}
+
+function deleteAvaliacao(id) {
+  const tl = state.tls.find(t=>t.id===currentLeaderId);
+  if (!tl) return;
+  tl.avaliacoes = (tl.avaliacoes||[]).filter(a=>a.id!==id);
+  saveState(); renderAvaliacoesHistory(tl); toast('Avaliação removida');
+}
+
+// ============================================
+//  GEMINI API
+// ============================================
+async function geminiGenerate(prompt) {
+  if (!GEMINI_KEY) throw new Error('API Key não configurada. Clique em 🔑 API Key.');
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_KEY}`;
+  let res;
+  try {
+    res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }] })
+    });
+  } catch(networkErr) {
+    throw new Error('Sem conexão com a API Gemini. Verifique sua internet ou se a chave está correta.');
+  }
+  if (!res.ok) {
+    let msg = `HTTP ${res.status}`;
+    try { const e = await res.json(); msg = e?.error?.message || msg; } catch(_) {}
+    if (res.status === 400) throw new Error('Chave inválida ou requisição mal formada: ' + msg);
+    if (res.status === 403) throw new Error('Chave sem permissão. Verifique se a Gemini API está habilitada no Google Cloud.');
+    if (res.status === 429) throw new Error('Limite de requisições atingido. Aguarde alguns segundos.');
+    throw new Error(msg);
+  }
+  const data = await res.json();
+  return data?.candidates?.[0]?.content?.parts?.[0]?.text || 'Sem resposta';
+}
+
+// ============================================
+//  API KEY MODAL
+// ============================================
+document.getElementById('btnSetKey').addEventListener('click', openKeyModal);
+
+function openKeyModal() {
+  document.getElementById('keyInput').value = GEMINI_KEY;
+  const status = document.getElementById('keyStatus');
+  if (GEMINI_KEY) {
+    status.textContent = `✓ Chave configurada (${GEMINI_KEY.slice(0,8)}...)`;
+    status.style.color = '#3a7a00';
+  } else {
+    status.textContent = 'Nenhuma chave configurada.';
+    status.style.color = 'var(--muted)';
+  }
+  document.getElementById('keyTestResult').textContent = '';
+  document.getElementById('keyModal').classList.add('open');
+}
+
+function closeKeyModal() { document.getElementById('keyModal').classList.remove('open'); }
+
+function saveApiKey() {
+  const key = document.getElementById('keyInput').value.trim();
+  GEMINI_KEY = key;
+  localStorage.setItem('cx_gemini_key', key);
+  closeKeyModal();
+  toast('✓ Chave salva');
+  document.getElementById('btnSetKey').style.borderColor = key ? '#8DC63F' : '';
+  document.getElementById('btnSetKey').style.color = key ? '#8DC63F' : '';
+}
+
+async function testApiKey() {
+  const key = document.getElementById('keyInput').value.trim();
+  const resultEl = document.getElementById('keyTestResult');
+  if (!key) { resultEl.textContent = '⚠ Cole a chave antes de testar.'; resultEl.style.color = 'var(--orange)'; return; }
+
+  resultEl.textContent = '⏳ Testando conexão...';
+  resultEl.style.color = 'var(--muted)';
+
+  try {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ contents: [{ parts: [{ text: 'Responda apenas: ok' }] }] })
+    });
+    if (res.ok) {
+      resultEl.textContent = '✅ Conexão bem-sucedida! A chave está funcionando.';
+      resultEl.style.color = '#3a7a00';
+    } else {
+      const err = await res.json().catch(()=>({}));
+      const msg = err?.error?.message || `HTTP ${res.status}`;
+      if (res.status === 400) { resultEl.textContent = `❌ Chave inválida: ${msg}`; }
+      else if (res.status === 403) { resultEl.textContent = '❌ Sem permissão. Habilite a Gemini API no Google Cloud Console.'; }
+      else { resultEl.textContent = `❌ Erro ${res.status}: ${msg}`; }
+      resultEl.style.color = '#c0392b';
+    }
+  } catch(e) {
+    resultEl.textContent = '❌ Sem conexão com a API. Este board precisa ser aberto no browser (não no preview do Claude) para chamadas externas funcionarem.';
+    resultEl.style.color = '#c0392b';
+  }
+}
+
+// ============================================
+//  KPIs
+// ============================================
+const MONTHS = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+
+function renderKPIs() {
+  const content = document.getElementById('kpiContent');
+  content.innerHTML = '';
+
+  Object.entries(state.kpis).forEach(([alavanca, kpis]) => {
+    const wrap = document.createElement('div');
+    wrap.className = 'kpi-table-wrap';
+    wrap.style.marginBottom = '28px';
+
+    wrap.innerHTML = `
+      <table>
+        <thead>
+          <tr>
+            <th style="min-width:160px">KPI</th>
+            <th>Tipo</th>
+            <th>Baseline</th>
+            <th>Fonte</th>
+            <th style="font-weight:700;color:var(--text)">Real</th>
+            ${MONTHS.map(m=>`<th class="kpi-cell">${m}</th>`).join('')}
+            <th style="min-width:90px">vs Baseline</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr class="kpi-alavanca-row">
+            <td colspan="${6+MONTHS.length}">📌 ${alavanca}</td>
+          </tr>
+          ${kpis.map(kpi => buildKPIRow(kpi, alavanca)).join('')}
+        </tbody>
+      </table>
+    `;
+
+    content.appendChild(wrap);
+  });
+}
+
+function buildKPIRow(kpi, alavanca) {
+  const baseline = parseFloat((kpi.baseline||'').toString().replace(',','.'));
+  const real     = parseFloat((kpi.real||'').toString().replace(',','.'));
+  let diffHtml = '<span class="diff-neutral">—</span>';
+  if (!isNaN(baseline) && !isNaN(real) && baseline !== 0) {
+    const diff = ((real - baseline) / Math.abs(baseline) * 100).toFixed(1);
+    const cls  = diff > 0 ? 'diff-positive' : diff < 0 ? 'diff-negative' : 'diff-neutral';
+    diffHtml = `<span class="${cls}">${diff > 0 ? '+' : ''}${diff}%</span>`;
+  }
+
+  const cell = (val, field, id) =>
+    `<td class="kpi-cell" contenteditable="true" 
+        onblur="updateKPIField('${id}','${alavanca}','${field}',this.innerText)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
+     >${val||''}</td>`;
+
+  return `<tr data-kpi-id="${kpi.id}">
+    <td contenteditable="true" style="min-width:160px;font-weight:500"
+        onblur="updateKPIField('${kpi.id}','${alavanca}','kpi',this.innerText)"
+        onkeydown="if(event.key==='Enter'){event.preventDefault();this.blur()}"
+    >${kpi.kpi||''}</td>
+    ${cell(kpi.tipo,'tipo',kpi.id)}
+    ${cell(kpi.baseline,'baseline',kpi.id)}
+    ${cell(kpi.fonte,'fonte',kpi.id)}
+    ${cell(kpi.real,'real',kpi.id)}
+    ${MONTHS.map(m => cell((kpi.months||{})[m]||'','month_'+m,kpi.id)).join('')}
+    <td>${diffHtml}</td>
+    <td><button class="btn-remove" onclick="deleteKPIRow('${kpi.id}','${escHtml(alavanca)}')">✕</button></td>
+  </tr>`;
+}
+
+function updateKPIField(id, alavanca, field, val) {
+  const kpis = state.kpis[alavanca];
+  if (!kpis) return;
+  const kpi = kpis.find(k => k.id === id);
+  if (!kpi) return;
+  if (field.startsWith('month_')) {
+    if (!kpi.months) kpi.months = {};
+    kpi.months[field.replace('month_','')] = val.trim();
+  } else {
+    kpi[field] = val.trim();
+  }
+  saveState();
+  // re-render vs baseline cell only
+  const row = document.querySelector(`tr[data-kpi-id="${id}"]`);
+  if (row) {
+    const baseline = parseFloat((kpi.baseline||'').replace(',','.'));
+    const real     = parseFloat((kpi.real||'').replace(',','.'));
+    const lastTd   = row.lastElementChild.previousElementSibling;
+    if (!isNaN(baseline) && !isNaN(real) && baseline !== 0) {
+      const diff = ((real-baseline)/Math.abs(baseline)*100).toFixed(1);
+      const cls  = diff>0?'diff-positive':diff<0?'diff-negative':'diff-neutral';
+      lastTd.innerHTML = `<span class="${cls}">${diff>0?'+':''}${diff}%</span>`;
+    } else {
+      lastTd.innerHTML = '<span class="diff-neutral">—</span>';
+    }
+  }
+}
+
+function addKPIRow() {
+  // Add to first alavanca by default
+  const firstAl = Object.keys(state.kpis)[0];
+  if (!firstAl) return;
+  state.kpis[firstAl].push({
+    id: uid(), kpi:'Novo KPI', tipo:'%', baseline:'', fonte:'', real:'',
+    months: MONTHS.reduce((a,m)=>{a[m]='';return a;},{}), notes:''
+  });
+  saveState();
+  renderKPIs();
+}
+
+function deleteKPIRow(id, alavanca) {
+  if (!confirm('Remover este KPI?')) return;
+  if (state.kpis[alavanca]) {
+    state.kpis[alavanca] = state.kpis[alavanca].filter(k => k.id !== id);
+  }
+  saveState();
+  renderKPIs();
+}
+
+function exportKPICSV() {
+  const rows = [['Alavanca','KPI','Tipo','Baseline','Fonte','Real',...MONTHS,'vs Baseline']];
+  Object.entries(state.kpis).forEach(([alav, kpis]) => {
+    kpis.forEach(k => {
+      const bl = parseFloat((k.baseline||'').replace(',','.'));
+      const re = parseFloat((k.real||'').replace(',','.'));
+      const diff = (!isNaN(bl)&&!isNaN(re)&&bl!==0) ? ((re-bl)/Math.abs(bl)*100).toFixed(1)+'%' : '—';
+      rows.push([alav, k.kpi, k.tipo, k.baseline, k.fonte, k.real, ...MONTHS.map(m=>(k.months||{})[m]||''), diff]);
+    });
+  });
+  const csv = rows.map(r=>r.map(v=>`"${(v||'').toString().replace(/"/g,'""')}"`).join(',')).join('\n');
+  download('kpis.csv', csv, 'text/csv');
+}
+
+function importKPICSV() {
+  document.getElementById('kpiCsvInput').click();
+}
+
+document.getElementById('kpiCsvInput').addEventListener('change', function() {
+  const file = this.files[0];
+  if (!file) return;
+  Papa.parse(file, {
+    header: true,
+    skipEmptyLines: true,
+    complete: result => {
+      result.data.forEach(row => {
+        const alav = row['Alavanca'];
+        if (!alav || !row['KPI']) return;
+        if (!state.kpis[alav]) state.kpis[alav] = [];
+        const months = {};
+        MONTHS.forEach(m => { months[m] = row[m] || ''; });
+        state.kpis[alav].push({
+          id: uid(), kpi: row['KPI']||'', tipo: row['Tipo']||'', baseline: row['Baseline']||'',
+          fonte: row['Fonte']||'', real: row['Real']||'', months, notes:''
+        });
+      });
+      saveState();
+      renderKPIs();
+      toast('✓ KPIs importados');
+    }
+  });
+  this.value = '';
+});
+
+// ============================================
+//  FILE READER UTIL
+// ============================================
+async function readFileText(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = reject;
+    reader.readAsText(file);
+  });
+}
+
+// ============================================
+//  CLOSE MODALS ON OVERLAY CLICK
+// ============================================
+['cardModal','oonModal','keyModal','feedbackModal'].forEach(id => {
+  document.getElementById(id).addEventListener('click', function(e) {
+    if (e.target === this) {
+      this.classList.remove('open');
+      if (id === 'cardModal') editingCardId = null;
+    }
+  });
+});
+
+// ============================================
+//  RENDER ALL
+// ============================================
+function renderAll() {
+  renderKanban();
+  renderLeadersTable();
+  renderKPIs();
+}
+
+// ============================================
+//  INIT
+// ============================================
+loadState();
+
+// Seed initial data if empty
+if (!state.tls || state.tls.length === 0) state.tls = getInitialLeaders();
+if (!state.kpis || Object.keys(state.kpis).length === 0) state.kpis = getInitialKPIs();
+saveState();
+
+// Reflect saved key state
+if (GEMINI_KEY) {
+  document.getElementById('btnSetKey').style.borderColor = '#8DC63F';
+  document.getElementById('btnSetKey').style.color = '#8DC63F';
+}
+
+// Restore session or show login
+const savedSession = getSession();
+if (savedSession) {
+  currentUser = savedSession;
+  document.getElementById('login-screen').classList.remove('visible');
+  applyAccessRules();
+  renderAll();
+} else {
+  document.getElementById('login-screen').classList.add('visible');
+}
+</script>
+</body>
+</html>
